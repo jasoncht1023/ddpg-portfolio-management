@@ -1,29 +1,29 @@
-import os
 import torch 
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
-import numpy as np
 import tensorly as tl
 from tensorly.decomposition import tucker
 from collections import defaultdict
 import pandas as pd
 import yfinance as yf
 import numpy as np
-
+from functools import reduce 
+import operator
 class ActorNetwork(nn.Module):
     def __init__(self, name, chkpt_dir='tmp/ddpg'):
         super(ActorNetwork, self).__init__()
+        self.tucker_dimension = [8, 6, 6, 6]
+        self.num_of_actions = 10
         self.relu = nn.ReLU()
         self.conv3d = nn.Conv3d(in_channels=4, out_channels=32, kernel_size=(1,3,1))
-        self.fc = nn.Linear(8 * 6 * 6 * 6, 10)
+        self.fc = nn.Linear(reduce(operator.mul, self.tucker_dimension, 1), self.num_of_actions)
         self.softmax = nn.Softmax(dim=-1)
-        
+        self.optimizer = optim.Adam(self.parameters(), lr=1e-2)
     def forward(self, x):
         x = self.conv3d(x)
         x = self.relu(x)
         x = tl.tensor(x.detach().cpu().numpy())
-        core, factors = tucker(x, rank=[8, 6, 6, 6]) # can be change
+        core, factors = tucker(x, rank=self.tucker_dimension) # can be change
         x = torch.tensor(core)
         x = torch.flatten(x)
         x = self.fc(x)
@@ -116,3 +116,4 @@ if __name__ == "__main__":
     f_prime = policy_net(f[0])
     print(f"after: {f_prime.shape}")
     print(f_prime)
+    print(f"sum: {sum(f_prime)}")
