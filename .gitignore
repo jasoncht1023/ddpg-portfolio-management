@@ -1,1 +1,6 @@
-*.ipynb_checkpoints
+.ipynb_checkpoints
+.venv
+test.py
+test_run_data.csv
+stock-data-fetch.py
+__pycache__
