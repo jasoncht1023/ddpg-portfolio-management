@@ -1,10 +1,10 @@
 # Setup
 
 ## 1. Set up and activate the Python virtual environment
-Please install Python 1.11 (Recommended version: 1.11.5)
+Please install Python 3.11 (Recommended version: 3.11.5)
 ```bash
     pip install virtualenv
-    virtualenv .venv
+    virtualenv -p python3.11.5 .venv
     .venv/Scripts/activate
 ```
 ## 2. Install the dependencies
