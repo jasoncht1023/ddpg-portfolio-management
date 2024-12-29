@@ -6,6 +6,7 @@ from tensorly.decomposition import tucker
 from functools import reduce
 import operator
 
+
 # Actor / Policy Network / mu
 # decide what to do based on the current state, outputs action values
 class ActorNetwork(nn.Module):
@@ -22,15 +23,15 @@ class ActorNetwork(nn.Module):
         self.optimizer = optim.Adam(self.parameters(), lr=1e-2)
         tl.set_backend("pytorch")
 
-        self.device = T.device('cuda:0' if T.cuda.is_available() else 'cuda:1')
+        self.device = T.device("cuda:0" if T.cuda.is_available() else "cuda:1")
         self.to(self.device)
 
     def forward(self, x):
-        # x = self.conv3d(x)
-        # x = self.relu(x)
-        # core, factors = tucker(x, rank=self.tucker_dimension)  # can be change
-        # core.requires_grad_(True)
-        # x = T.flatten(core)
+        x = self.conv3d(x)
+        x = self.relu(x)
+        core, factors = tucker(x, rank=self.tucker_dimension)  # can be change
+        core.requires_grad_(True)
+        x = T.flatten(core)
         x = self.fc(x)
         x = self.softmax(x)
         x = x / x.sum()
@@ -47,17 +48,9 @@ class ActorNetwork(nn.Module):
 
 # for testing only
 if __name__ == "__main__":
-
-    def get_params(model):
-        for name, param in model.named_parameters():
-            if param.requires_grad and name == "conv3d.bias":
-                return param.data
-
+    n_actions = 10
+    policy_net = ActorNetwork(n_actions=n_actions, name="model name")
     criterion = nn.CrossEntropyLoss()
-    policy_net = ActorNetwork("model name")
-    for name, param in policy_net.named_parameters():
-        print(name)
-
     target = T.Tensor(
         [
             0,
@@ -71,14 +64,12 @@ if __name__ == "__main__":
             0,
             0,
         ]
-    )
-    input = T.randn(4, 10, 10, 10)
-    print(get_params(policy_net))
+    ).to(policy_net.device)
+    input = T.randn(4, 10, 10, 10).to(policy_net.device)
     for i in range(40):
         policy_net.optimizer.zero_grad()
         output = policy_net(input)
         loss = criterion(output, target)
         loss.backward()
         policy_net.optimizer.step()
-    print(get_params(policy_net))
     print(output)
