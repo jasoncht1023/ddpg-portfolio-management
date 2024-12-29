@@ -1,14 +1,14 @@
-from ddpg import Agent
+from ddpg.agent import Agent
 import numpy as np
-from trading_simulator import TradingSimulator
+from env.trading_simulator import TradingSimulator
 # from utils import plotLearning
 
 assets = [
-    "AMD",
-    "TSLA",
+    "FUTU",
+    "NVDA",
 ]
 
-env = TradingSimulator(1000000, assets=assets, start_date="2024-01-01", end_date="2024-11-11")
+env = TradingSimulator(1000000, assets=assets, start_date="2024-01-01", end_date="2024-11-11", rebalance_window=10)
 agent = Agent(alpha=0.000025, beta=0.00025, input_dims=[len(assets)*5], tau=0.001,
               batch_size=64,  layer1_size=400, layer2_size=300, n_actions=2)
 
@@ -18,7 +18,7 @@ np.random.seed(0)
 score_history = []
 for i in range(5):
     observation = env.restart()
-    print(observation)
+    print("observation:", observation)
     done = False
     score = 0
     while not done:

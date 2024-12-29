@@ -4,13 +4,13 @@ import numpy as np
 from collections import defaultdict
 import torch
 import torch.nn as nn
+from .tensor_processor import TensorProcessor
 
 class TradingSimulator():
 
     transaction_cost = 0.005
 
-    def __init__(self, principal, assets, start_date, end_date):
-        '''
+    def __init__(self, principal, assets, start_date, end_date, rebalance_window):
         self.data = yf.download(assets, start=start_date, end=end_date, group_by='ticker')
         if len(assets) == 1:
             # Create a MultiIndex for the columns
@@ -58,6 +58,11 @@ class TradingSimulator():
         to_drop = ["EMA_12", "EMA_26", "Returns"]
         close_data = close_data.drop(columns=[(stock, label) for stock in assets for label in to_drop])
 
+        # Collect all the Adjusted Close price data
+        adj_close_data = close_data.loc[:, close_data.columns.get_level_values(1) == "Adj Close"]
+        adj_close_data.columns = adj_close_data.columns.droplevel(1)
+        self.close_price = adj_close_data
+
         corr = {}
         indicators = ["Adj Close", "MA", "RSI", "MACD"]
         for indicator in indicators:
@@ -65,57 +70,31 @@ class TradingSimulator():
 
         F = defaultdict(dict) # 4 * n * (m * n)
         n = len(assets)
-        m = 10
-        T = len(close_data) // m
+        rebalance_window = 10
+        T = len(close_data) // rebalance_window
 
         for t in range(0, T): # t
-            V = close_data[t*m:(t+1)*m] # m days closing data
+            V = close_data[t*rebalance_window:(t+1)*rebalance_window] # m days closing data
             for indicator in ["Adj Close", "MA", "RSI", "MACD"]: # the 4 dimensions
                 for stock in assets: # n assets
-                    F[t][(stock, indicator)] = V[(stock, indicator)].values.reshape(m,1).dot(corr[indicator][(stock, indicator)].values.reshape(1,n)) # m * n tensor for indicator i & stock n
+                    F[t][(stock, indicator)] = V[(stock, indicator)].values.reshape(rebalance_window,1).dot(corr[indicator][(stock, indicator)].values.reshape(1,n)) # m * n tensor for indicator i & stock n
         f = []
         for t in range(0, T):
             f.append([])
             for indicator in indicators:
                 a = []
-                for stock in tickers:
+                for stock in assets:
                     a.append(F[t][(stock, indicator)])
                 f[-1].append(a)
         f = list(map(torch.Tensor, f))
-        
-        # Instantiate the network
-        net = self.Conv3DNet()
+        self.stock_tensors = f
 
-        # Pass the input tensor f[t] through the network
-        F_prime = []
-        for t in range(0, T):
-            F_prime.append(net(f[t]))
-        '''
+        self.tensor_processor = TensorProcessor(len(assets))
 
         # Stays constant throughout epochs
         self.principal = principal
         self.assets = assets
-
-        self.data = yf.download(assets, start=start_date, end=end_date)['Adj Close']
-
-        self.portfolio = []
-        for stock in assets:
-            self.portfolio.append({ "name": stock, "value": principal / len(assets), "weighting": 1 / len(assets) })
-
-        self.portfolio_value = principal
-        self.time = 0
-    
-    # Define the 3D Convolutional Neural Network layer
-    class Conv3DNet(nn.Module):
-        def __init__(self):
-            super(self.Conv3DNet, self).__init__()
-            self.conv3d = nn.Conv3d(in_channels=4, out_channels=32, kernel_size=(1, 3, 1))
-            self.relu = nn.ReLU()
-
-        def forward(self, x):
-            x = self.conv3d(x)
-            x = self.relu(x)
-            return x
+        self.rebalance_window = rebalance_window
     
     def EMA(self, w, price, last):
         a = 2/(1+w)
@@ -133,20 +112,23 @@ class TradingSimulator():
         return 100 * (1 - 1/(1+avg_gain/avg_loss))
         
     def restart(self):
+        # Reset the initial portfolio
         self.portfolio = []
         for stock in self.assets:
             self.portfolio.append({"name": stock, 
                                    "value": self.principal / len(self.assets), 
                                    "weighting": 1 / len(self.assets), 
-                                   "price": self.data.iloc[0][stock],
-                                   "num_shares": self.principal / len(self.assets) / self.data.iloc[0][stock]})
+                                   "price": self.close_price.iloc[0][stock],
+                                   "num_shares": self.principal / len(self.assets) / self.close_price.iloc[0][stock]})
         self.portfolio_value = self.principal
         self.time = 0
-
+        
+        # Initial observation
         new_state = []
         for stock in self.portfolio:
             new_state.extend([stock["value"], stock["weighting"], stock["price"], stock["num_shares"]])
-        new_state.extend(self.data.iloc[0])
+        new_state.extend(self.tensor_processor(self.stock_tensors[0]))
+        print("total t:", len(self.stock_tensors))
 
         return new_state
 
@@ -162,13 +144,13 @@ class TradingSimulator():
             self.portfolio[i]["num_shares"] = weight_adjusted_value / self.portfolio[i]["price"]
 
             # Price and value of a particular stock change in time = t+1
-            self.portfolio[i]["price"] = self.data.iloc[self.time][self.assets[i]]
+            self.portfolio[i]["price"] = self.close_price.iloc[self.time * self.rebalance_window - 1][self.assets[i]]
             self.portfolio[i]["value"] = self.portfolio[i]["price"] * self.portfolio[i]["num_shares"]
-            new_value +=  self.portfolio[i]["value"]
+            new_value += self.portfolio[i]["value"]
         self.portfolio_value = new_value
 
         print(self.time)
-        if (self.time == len(self.data)-1):
+        if (self.time == len(self.close_price)-1):
             done = 1
 
         reward = self.portfolio_value - old_portfolio_value
@@ -176,7 +158,7 @@ class TradingSimulator():
         new_state = []
         for stock in self.portfolio:
             new_state.extend([stock["value"], stock["weighting"], stock["price"], stock["num_shares"]])
-        new_state.extend(self.data.iloc[self.time])
+        new_state.extend(self.tensor_processor(self.stock_tensors[self.time]))
 
         return new_state, reward, done
 
