@@ -5,22 +5,25 @@ import tensorly as tl
 from tensorly.decomposition import tucker
 from functools import reduce
 import operator
+import os
 
 
 # Actor / Policy Network / mu
 # decide what to do based on the current state, outputs action values
 class ActorNetwork(nn.Module):
-    def __init__(self, n_actions, name, chkpt_dir="tmp/ddpg"):
+    def __init__(self, learning_rate, n_actions, name, chkpt_dir="tmp/ddpg"):
         super(ActorNetwork, self).__init__()
         self.tucker_dimension = [8, 6, 6, 6]
         self.n_actions = n_actions
         self.relu = nn.ReLU()
+        self.checkpoint_file = os.path.join(chkpt_dir, name + "_ddpg")
+
         self.conv3d = nn.Conv3d(in_channels=4, out_channels=32, kernel_size=(1, 3, 1))
         self.fc = nn.Linear(
             reduce(operator.mul, self.tucker_dimension, 1), self.n_actions
         )
         self.softmax = nn.Softmax(dim=-1)
-        self.optimizer = optim.Adam(self.parameters(), lr=1e-2)
+        self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
         tl.set_backend("pytorch")
 
         self.device = T.device("cuda:0" if T.cuda.is_available() else "cuda:1")
@@ -49,7 +52,9 @@ class ActorNetwork(nn.Module):
 # for testing only
 if __name__ == "__main__":
     n_actions = 10
-    policy_net = ActorNetwork(n_actions=n_actions, name="model name")
+    policy_net = ActorNetwork(
+        learning_rate=1e-2, n_actions=n_actions, name="model name"
+    )
     criterion = nn.CrossEntropyLoss()
     target = T.Tensor(
         [
@@ -65,11 +70,11 @@ if __name__ == "__main__":
             0,
         ]
     ).to(policy_net.device)
-    input = T.randn(4, 10, 10, 10).to(policy_net.device)
+    state_example = T.randn(4, 10, 10, 10).to(policy_net.device)
     for i in range(40):
         policy_net.optimizer.zero_grad()
-        output = policy_net(input)
-        loss = criterion(output, target)
+        action = policy_net(state_example)
+        loss = criterion(action, target)
         loss.backward()
         policy_net.optimizer.step()
-    print(output)
+    print(action)
