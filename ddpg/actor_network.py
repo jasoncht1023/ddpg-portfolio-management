@@ -13,7 +13,7 @@ import os
 class ActorNetwork(nn.Module):
     def __init__(self, learning_rate, n_actions, name, chkpt_dir="tmp/ddpg"):
         super(ActorNetwork, self).__init__()
-        self.tucker_dimension = [8, 6, 6, 6]
+        self.tucker_dimension = [8, 2, 6, 2]
         self.n_actions = n_actions
         self.relu = nn.ReLU()
         self.checkpoint_file = os.path.join(chkpt_dir, name + "_ddpg")

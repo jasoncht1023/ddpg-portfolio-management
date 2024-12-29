@@ -7,7 +7,7 @@ from tensorly.decomposition import tucker
 from functools import reduce
 import operator
 import os
-from actor_network import ActorNetwork
+from .actor_network import ActorNetwork
 
 
 # Critic / Q-value Network / Q
@@ -21,8 +21,7 @@ class CriticNetwork(nn.Module):
         chkpt_dir="tmp/ddpg",
     ):
         super(CriticNetwork, self).__init__()
-
-        self.tucker_dimension = [8, 6, 6, 6]
+        self.tucker_dimension = [8, 2, 6, 2]
         self.n_actions = n_actions
         self.relu = nn.ReLU()
         self.checkpoint_file = os.path.join(chkpt_dir, name + "_ddpg")

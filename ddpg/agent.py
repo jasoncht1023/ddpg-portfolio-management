@@ -6,11 +6,22 @@ from .replay_buffer import ReplayBuffer
 from .actor_network import ActorNetwork
 from .critic_network import CriticNetwork
 
+
 # alpha and beta are the learning rate for actor and critic network, gamma is the discount factor for future reward
 class Agent(object):
-    def __init__(self, alpha, beta, input_dims, tau, gamma=0.99,
-                 n_actions=2, max_size=1000000, layer1_size=400,
-                 layer2_size=300, batch_size=64):
+    def __init__(
+        self,
+        alpha,
+        beta,
+        input_dims,
+        tau,
+        gamma=0.99,
+        n_actions=2,
+        max_size=1000000,
+        layer1_size=400,
+        layer2_size=300,
+        batch_size=64,
+    ):
         self.gamma = gamma
         self.tau = tau
         self.memory = ReplayBuffer(max_size, input_dims, n_actions)
@@ -19,20 +30,29 @@ class Agent(object):
         # self.actor = ActorNetwork(alpha, input_dims, layer1_size,
         #                           layer2_size, n_actions=n_actions,
         #                           name='Actor')
-        self.critic = CriticNetwork(beta, input_dims, layer1_size,
-                                    layer2_size, n_actions=n_actions,
-                                    name='Critic')
+        # self.critic = CriticNetwork(beta, input_dims, layer1_size,
+        #                             layer2_size, n_actions=n_actions,
+        #                             name='Critic')
 
         # self.target_actor = ActorNetwork(alpha, input_dims, layer1_size,
         #                                  layer2_size, n_actions=n_actions,
         #                                  name='TargetActor')
-        self.target_critic = CriticNetwork(beta, input_dims, layer1_size,
-                                           layer2_size, n_actions=n_actions,
-                                           name='TargetCritic')
-        
-        self.actor = ActorNetwork(n_actions=n_actions, name='Actor')
+        # self.target_critic = CriticNetwork(beta, input_dims, layer1_size,
+        #                                    layer2_size, n_actions=n_actions,
+        #                                    name='TargetCritic')
 
-        self.target_actor = ActorNetwork(n_actions=n_actions, name='TargetActor')
+        self.actor = ActorNetwork(
+            learning_rate=alpha, n_actions=n_actions, name="Actor"
+        )
+        self.critic = CriticNetwork(
+            learning_rate=beta, n_actions=n_actions, name="Critic"
+        )
+        self.target_actor = ActorNetwork(
+            learning_rate=alpha, n_actions=n_actions, name="TargetActor"
+        )
+        self.target_critic = CriticNetwork(
+            learning_rate=beta, n_actions=n_actions, name="TargetCritic"
+        )
 
         self.noise = OUActionNoise(mu=np.zeros(n_actions))
 
@@ -57,52 +77,78 @@ class Agent(object):
             mu_prime[i] = abs(mu_prime[i]) / total
 
         return mu_prime
-        
 
-
-    def remember(self, state, action, reward, new_state, done):
-        self.memory.store_transition(state, action, reward, new_state, done)
+    def remember(self, old_input_tensor, action, reward, new_input_tensor, done):
+        self.memory.store_transition(
+            old_input_tensor, action, reward, new_input_tensor, done
+        )
 
     def learn(self):
         if self.memory.mem_cntr < self.batch_size:
             return
-        state, action, reward, new_state, done = self.memory.sample_buffer(self.batch_size)
+        old_input_tensor, action, reward, new_input_tensor, done = (
+            self.memory.sample_buffer(self.batch_size)
+        )
         # change them to numpy arrays and will be used in critic network
-        reward = T.tensor(reward, dtype=T.float).to(self.critic.device)     
+        reward = T.tensor(reward, dtype=T.float).to(self.critic.device)
         done = T.tensor(done).to(self.critic.device)
-        new_state = T.tensor(new_state, dtype=T.float).to(self.critic.device)
+        new_input_tensor = T.tensor(new_input_tensor, dtype=T.float).to(
+            self.critic.device
+        )
         action = T.tensor(action, dtype=T.float).to(self.critic.device)
-        state = T.tensor(state, dtype=T.float).to(self.critic.device)
+        old_input_tensor = T.tensor(old_input_tensor, dtype=T.float).to(
+            self.critic.device
+        )
 
         self.target_actor.eval()
         self.target_critic.eval()
         self.critic.eval()
 
         # calculate the target actions like the bellman equation in Q-learning
-        target_actions = self.target_actor.forward(new_state)
-        critic_value_ = self.target_critic.forward(new_state, target_actions)
-        critic_value = self.critic.forward(state, action)
 
-        target = []
+        # refactor needed
+        target_actions = [
+            self.target_actor.forward(input_tensor) for input_tensor in old_input_tensor
+        ]
+        critic_value_ = [
+            self.target_critic.forward(old_input_tensor[i], action)
+            for i, action in enumerate(target_actions)
+        ]
+        critic_value = [
+            self.critic.forward(old_input_tensor[i], action)
+            for i, action in enumerate(target_actions)
+        ]
+
+        target_actions = T.stack(target_actions).to(self.critic.device)
+        critic_value_ = T.stack(critic_value_).to(self.critic.device)
+        critic_value = T.stack(critic_value).to(self.critic.device)
+
+        y_arr = []
         for j in range(self.batch_size):
-            target.append(reward[j] + self.gamma*critic_value_[j]*done[j])
-        target = T.tensor(target).to(self.critic.device)
-        target = target.view(self.batch_size, 1)
+            y_arr.append(reward[j] + self.gamma * (1 - done[j]) * critic_value_[j])
+        y_arr = T.tensor(y_arr).to(self.critic.device)
+        y_arr = y_arr.view(self.batch_size, 1)
 
         self.critic.train()
         self.critic.optimizer.zero_grad()
-        critic_loss = F.mse_loss(target, critic_value)
+        critic_loss = F.mse_loss(critic_value, y_arr)
         critic_loss.backward()
         self.critic.optimizer.step()
-
         self.critic.eval()
+
         self.actor.optimizer.zero_grad()
-        mu = self.actor.forward(state)
+        mu = [self.actor.forward(input_tensor) for input_tensor in old_input_tensor]
+        mu = T.stack(mu).to(self.actor.device)
         self.actor.train()
-        actor_loss = -self.critic.forward(state, mu)
+        actor_loss = [
+            -self.critic.forward(old_input_tensor[i], action)
+            for i, action in enumerate(mu)
+        ]
+        actor_loss = T.stack(actor_loss).to(self.actor.device)
         actor_loss = T.mean(actor_loss)
         actor_loss.backward()
         self.actor.optimizer.step()
+        self.actor.eval()
 
         self.update_network_parameters()
 
@@ -121,16 +167,20 @@ class Agent(object):
         target_actor_dict = dict(target_actor_params)
 
         for name in critic_state_dict:
-            critic_state_dict[name] = tau*critic_state_dict[name].clone() + \
-                                      (1-tau)*target_critic_dict[name].clone()
+            critic_state_dict[name] = (
+                tau * critic_state_dict[name].clone()
+                + (1 - tau) * target_critic_dict[name].clone()
+            )
 
         # iterate over the dictionary and look for the keys in the dict and update the value from the network
         self.target_critic.load_state_dict(critic_state_dict)
 
         for name in actor_state_dict:
-            actor_state_dict[name] = tau*actor_state_dict[name].clone() + \
-                                      (1-tau)*target_actor_dict[name].clone()
-  
+            actor_state_dict[name] = (
+                tau * actor_state_dict[name].clone()
+                + (1 - tau) * target_actor_dict[name].clone()
+            )
+
         self.target_actor.load_state_dict(actor_state_dict)
 
         """
@@ -148,6 +198,7 @@ class Agent(object):
             print(name, T.equal(param, critic_state_dict[name]))
         input()
         """
+
     def save_models(self):
         self.actor.save_checkpoint()
         self.target_actor.save_checkpoint()
@@ -167,11 +218,13 @@ class Agent(object):
         original_critic_dict = dict(self.original_critic.named_parameters())
         current_critic_params = self.critic.named_parameters()
         current_critic_dict = dict(current_critic_params)
-        print('Checking Actor parameters')
+        print("Checking Actor parameters")
 
         for param in current_actor_dict:
             print(param, T.equal(original_actor_dict[param], current_actor_dict[param]))
-        print('Checking critic parameters')
+        print("Checking critic parameters")
         for param in current_critic_dict:
-            print(param, T.equal(original_critic_dict[param], current_critic_dict[param]))
+            print(
+                param, T.equal(original_critic_dict[param], current_critic_dict[param])
+            )
         input()
