@@ -9,19 +9,8 @@ from .critic_network import CriticNetwork
 
 # alpha and beta are the learning rate for actor and critic network, gamma is the discount factor for future reward
 class Agent(object):
-    def __init__(
-        self,
-        alpha,
-        beta,
-        input_dims,
-        tau,
-        gamma=0.99,
-        n_actions=2,
-        max_size=1000000,
-        layer1_size=400,
-        layer2_size=300,
-        batch_size=64,
-    ):
+    def __init__(self, alpha, beta, input_dims, tau, gamma=0.99, 
+                 n_actions=2, max_size=1000000, batch_size=64):
         self.gamma = gamma
         self.tau = tau
         self.memory = ReplayBuffer(max_size, input_dims, n_actions)
@@ -41,18 +30,13 @@ class Agent(object):
         #                                    layer2_size, n_actions=n_actions,
         #                                    name='TargetCritic')
 
-        self.actor = ActorNetwork(
-            learning_rate=alpha, n_actions=n_actions, name="Actor"
-        )
-        self.critic = CriticNetwork(
-            learning_rate=beta, n_actions=n_actions, name="Critic"
-        )
-        self.target_actor = ActorNetwork(
-            learning_rate=alpha, n_actions=n_actions, name="TargetActor"
-        )
-        self.target_critic = CriticNetwork(
-            learning_rate=beta, n_actions=n_actions, name="TargetCritic"
-        )
+        self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, name="Actor")
+
+        self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, name="Critic")
+
+        self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, name="TargetActor")
+
+        self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, name="TargetCritic")
 
         self.noise = OUActionNoise(mu=np.zeros(n_actions))
 
@@ -71,34 +55,23 @@ class Agent(object):
         print("untransformed mu_prime:", mu_prime)
         mu_prime = np.array(list(map(abs, mu_prime)))
         print("mu_prime:", mu_prime)
-        print()
-        total = sum(mu_prime)
-        for i in range(len(mu_prime)):
-            mu_prime[i] = abs(mu_prime[i]) / total
+        mu_prime = mu_prime / mu_prime.sum()            # actions sum to 1
 
         return mu_prime
 
     def remember(self, old_input_tensor, action, reward, new_input_tensor, done):
-        self.memory.store_transition(
-            old_input_tensor, action, reward, new_input_tensor, done
-        )
+        self.memory.store_transition(old_input_tensor, action, reward, new_input_tensor, done)
 
     def learn(self):
         if self.memory.mem_cntr < self.batch_size:
             return
-        old_input_tensor, action, reward, new_input_tensor, done = (
-            self.memory.sample_buffer(self.batch_size)
-        )
+        old_input_tensor, action, reward, new_input_tensor, done = self.memory.sample_buffer(self.batch_size)
         # change them to numpy arrays and will be used in critic network
         reward = T.tensor(reward, dtype=T.float).to(self.critic.device)
         done = T.tensor(done).to(self.critic.device)
-        new_input_tensor = T.tensor(new_input_tensor, dtype=T.float).to(
-            self.critic.device
-        )
+        new_input_tensor = T.tensor(new_input_tensor, dtype=T.float).to(self.critic.device)
         action = T.tensor(action, dtype=T.float).to(self.critic.device)
-        old_input_tensor = T.tensor(old_input_tensor, dtype=T.float).to(
-            self.critic.device
-        )
+        old_input_tensor = T.tensor(old_input_tensor, dtype=T.float).to(self.critic.device)
 
         self.target_actor.eval()
         self.target_critic.eval()
@@ -124,8 +97,8 @@ class Agent(object):
         critic_value = T.stack(critic_value).to(self.critic.device)
 
         y_arr = []
-        for j in range(self.batch_size):
-            y_arr.append(reward[j] + self.gamma * (1 - done[j]) * critic_value_[j])
+        for i in range(self.batch_size):
+            y_arr.append(reward[i] + self.gamma * (1 - done[i]) * critic_value_[i])
         y_arr = T.tensor(y_arr).to(self.critic.device)
         y_arr = y_arr.view(self.batch_size, 1)
 
@@ -224,7 +197,5 @@ class Agent(object):
             print(param, T.equal(original_actor_dict[param], current_actor_dict[param]))
         print("Checking critic parameters")
         for param in current_critic_dict:
-            print(
-                param, T.equal(original_critic_dict[param], current_critic_dict[param])
-            )
+            print(param, T.equal(original_critic_dict[param], current_critic_dict[param]))
         input()

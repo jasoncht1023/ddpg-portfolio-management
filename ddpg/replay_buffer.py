@@ -12,17 +12,13 @@ class ReplayBuffer(object):
         self.reward_memory = np.zeros(self.mem_size)
         self.terminal_memory = np.zeros(self.mem_size, dtype=np.float32)
 
-    def store_transition(
-        self, old_input_tensor, action, reward, new_input_tensor, done
-    ):
+    def store_transition(self, old_input_tensor, action, reward, new_input_tensor, done):
         index = self.mem_cntr % self.mem_size
         self.old_input_tensor_memory[index] = old_input_tensor
         self.new_input_tensor_memory[index] = new_input_tensor
         self.action_memory[index] = action
         self.reward_memory[index] = reward
-        self.terminal_memory[index] = (
-            1 - done
-        )  # from bellman equation, to multiply whether the function is over
+        self.terminal_memory[index] = 1 - done  # from bellman equation, to multiply whether the function is over
         self.mem_cntr += 1
 
     def sample_buffer(self, batch_size):

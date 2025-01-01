@@ -12,14 +12,10 @@ class TradingSimulator:
     transaction_cost = 0.005
 
     def __init__(self, principal, assets, start_date, end_date, rebalance_window):
-        self.data = yf.download(
-            assets, start=start_date, end=end_date, group_by="ticker"
-        )
+        self.data = yf.download(assets, start=start_date, end=end_date, group_by="ticker")
         if len(assets) == 1:
             # Create a MultiIndex for the columns
-            multi_index_columns = pd.MultiIndex.from_tuples(
-                [(assets[0], col) for col in assets.columns]
-            )
+            multi_index_columns = pd.MultiIndex.from_tuples([(assets[0], col) for col in assets.columns])
             # Assign the new MultiIndex to the DataFrame
             self.data.columns = multi_index_columns
 
@@ -40,9 +36,7 @@ class TradingSimulator:
         adj_close = self.data.xs("Adj Close", level=1, axis=1)
         adj_close = adj_close.reindex(columns=returns.columns)
 
-        columns = pd.MultiIndex.from_product(
-            [assets, ["Adj Close", "Returns", "MA", "RSI", "EMA_12", "EMA_26", "MACD"]]
-        )
+        columns = pd.MultiIndex.from_product([assets, ["Adj Close", "Returns", "MA", "RSI", "EMA_12", "EMA_26", "MACD"]])
         df = pd.DataFrame(index=dates, columns=columns)
         df.columns = columns
         for stock in assets:
@@ -51,9 +45,7 @@ class TradingSimulator:
         df = df.reset_index()
 
         for stock in assets:
-            df[(stock, "MA")] = (
-                df[(stock, "Adj Close")].rolling(window=28).apply(self.MA)
-            )
+            df[(stock, "MA")] = df[(stock, "Adj Close")].rolling(window=28).apply(self.MA)
             df.loc[0, (stock, "EMA_12")] = df.loc[0, (stock, "Adj Close")]
             df.loc[0, (stock, "EMA_26")] = df.loc[0, (stock, "Adj Close")]
             for i in range(1, len(df)):
@@ -76,23 +68,17 @@ class TradingSimulator:
         close_data = df.drop(df.index[:27])
         close_data = close_data.reset_index(drop=True)
         to_drop = ["EMA_12", "EMA_26", "Returns"]
-        close_data = close_data.drop(
-            columns=[(stock, label) for stock in assets for label in to_drop]
-        )
+        close_data = close_data.drop(columns=[(stock, label) for stock in assets for label in to_drop])
 
         # Collect all the Adjusted Close price data
-        adj_close_data = close_data.loc[
-            :, close_data.columns.get_level_values(1) == "Adj Close"
-        ]
+        adj_close_data = close_data.loc[:, close_data.columns.get_level_values(1) == "Adj Close"]
         adj_close_data.columns = adj_close_data.columns.droplevel(1)
         self.close_price = adj_close_data
 
         corr = {}
         indicators = ["Adj Close", "MA", "RSI", "MACD"]
         for indicator in indicators:
-            corr[indicator] = close_data.filter(
-                [(stock, indicator) for stock in assets], axis=1
-            ).corr()
+            corr[indicator] = close_data.filter([(stock, indicator) for stock in assets], axis=1).corr()
 
         F = defaultdict(dict)  # 4 * n * (m * n)
         n = len(assets)
@@ -100,9 +86,7 @@ class TradingSimulator:
         T = len(close_data) // rebalance_window
 
         for t in range(0, T):  # t
-            V = close_data[
-                t * rebalance_window : (t + 1) * rebalance_window
-            ]  # m days closing data
+            V = close_data[t * rebalance_window : (t + 1) * rebalance_window]  # m days closing data
             for indicator in ["Adj Close", "MA", "RSI", "MACD"]:  # the 4 dimensions
                 for stock in assets:  # n assets
                     F[t][(stock, indicator)] = (
