@@ -1,0 +1,213 @@
+import yfinance as yf
+import pandas as pd
+import numpy as np
+from collections import defaultdict
+import torch
+import torch.nn as nn
+from .tensor_processor import TensorProcessor
+
+
+class TradingSimulator:
+
+    transaction_cost = 0.005
+
+    def __init__(self, principal, assets, start_date, end_date, rebalance_window):
+        self.data = yf.download(assets, start=start_date, end=end_date, group_by="ticker")
+        if len(assets) == 1:
+            # Create a MultiIndex for the columns
+            multi_index_columns = pd.MultiIndex.from_tuples([(assets[0], col) for col in assets.columns])
+            # Assign the new MultiIndex to the DataFrame
+            self.data.columns = multi_index_columns
+
+        returns_list = []
+        # Loop through each stock ticker and calculate returns
+        for stock in assets:
+            # Access the 'Adj Close' prices using xs method
+            adjusted_close = self.data[stock]["Adj Close"]
+            # Calculate percentage change
+            returns_series = adjusted_close.pct_change()
+            # Append the Series to the list
+            returns_list.append(returns_series.rename(stock))  # Rename for clarity
+
+        # Concatenate all return Series into a single DataFrame
+        returns = pd.concat(returns_list, axis=1)
+
+        dates = returns.index
+        adj_close = self.data.xs("Adj Close", level=1, axis=1)
+        adj_close = adj_close.reindex(columns=returns.columns)
+
+        columns = pd.MultiIndex.from_product([assets, ["Adj Close", "Returns", "MA", "RSI", "EMA_12", "EMA_26", "MACD"]])
+        df = pd.DataFrame(index=dates, columns=columns)
+        df.columns = columns
+        for stock in assets:
+            df[(stock, "Adj Close")] = adj_close[stock]
+            df[(stock, "Returns")] = returns[stock]
+        df = df.reset_index()
+
+        for stock in assets:
+            df[(stock, "MA")] = df[(stock, "Adj Close")].rolling(window=28).apply(self.MA)
+            df.loc[0, (stock, "EMA_12")] = df.loc[0, (stock, "Adj Close")]
+            df.loc[0, (stock, "EMA_26")] = df.loc[0, (stock, "Adj Close")]
+            for i in range(1, len(df)):
+                df.loc[i, (stock, "EMA_12")] = self.EMA(
+                    12,
+                    df.loc[i, (stock, "Adj Close")],
+                    df.loc[i - 1, (stock, "EMA_12")],
+                )
+                df.loc[i, (stock, "EMA_26")] = self.EMA(
+                    26,
+                    df.loc[i, (stock, "Adj Close")],
+                    df.loc[i - 1, (stock, "EMA_26")],
+                )
+            df[(stock, "MACD")] = (
+                df[(stock, "EMA_26")].rolling(window=9).sum()
+                - df[(stock, "EMA_12")].rolling(window=9).sum()
+            )
+            df[(stock, "RSI")] = df[(stock, "Returns")].rolling(14).apply(self.RSI)
+
+        close_data = df.drop(df.index[:27])
+        close_data = close_data.reset_index(drop=True)
+        to_drop = ["EMA_12", "EMA_26", "Returns"]
+        close_data = close_data.drop(columns=[(stock, label) for stock in assets for label in to_drop])
+
+        # Collect all the Adjusted Close price data
+        adj_close_data = close_data.loc[:, close_data.columns.get_level_values(1) == "Adj Close"]
+        adj_close_data.columns = adj_close_data.columns.droplevel(1)
+        self.close_price = adj_close_data
+
+        corr = {}
+        indicators = ["Adj Close", "MA", "RSI", "MACD"]
+        for indicator in indicators:
+            corr[indicator] = close_data.filter([(stock, indicator) for stock in assets], axis=1).corr()
+
+        F = defaultdict(dict)  # 4 * n * (m * n)
+        n = len(assets)
+        # rebalance_window = 10
+        T = len(close_data) // rebalance_window
+
+        for t in range(0, T):  # t
+            V = close_data[t * rebalance_window : (t + 1) * rebalance_window]  # m days closing data
+            for indicator in ["Adj Close", "MA", "RSI", "MACD"]:  # the 4 dimensions
+                for stock in assets:  # n assets
+                    F[t][(stock, indicator)] = (
+                        V[(stock, indicator)]
+                        .values.reshape(rebalance_window, 1)
+                        .dot(corr[indicator][(stock, indicator)].values.reshape(1, n))
+                    )  # m * n tensor for indicator i & stock n
+        f = []
+        for t in range(0, T):
+            f.append([])
+            for indicator in indicators:
+                a = []
+                for stock in assets:
+                    a.append(F[t][(stock, indicator)])
+                f[-1].append(a)
+        f = list(map(torch.Tensor, f))
+        self.stock_tensors = f
+
+        # self.tensor_processor = TensorProcessor(len(assets))
+
+        self.portfolio = []
+
+        # Stays constant throughout epochs
+        self.principal = principal
+        self.assets = assets
+        self.rebalance_window = rebalance_window
+
+    def EMA(self, w, price, last):
+        a = 2 / (1 + w)
+        return a * price + (1 - a) * last
+
+    def MA(self, prices):
+        return sum(prices) / 28
+
+    def MACD(self, long, short):
+        return sum(long) - sum(short)
+
+    def RSI(self, returns):
+        avg_gain = returns[returns > 0].mean()
+        avg_loss = -returns[returns < 0].mean()
+        return 100 * (1 - 1 / (1 + avg_gain / avg_loss))
+
+    def portfolio_to_holdings(self):
+        holdings = []
+        for stock in self.portfolio:
+            holdings.extend(
+                [
+                    stock["value"],
+                    stock["weighting"],
+                    stock["price"],
+                    stock["num_shares"],
+                ]
+            )
+        return holdings
+
+    def restart(self):
+        # Reset the initial portfolio
+        self.portfolio = []
+        self.portfolio_value = self.principal
+        self.time = 0
+
+        for stock in self.assets:
+            self.portfolio.append(
+                {
+                    "name": stock,
+                    "value": self.principal / len(self.assets),
+                    "weighting": 1 / len(self.assets),
+                    "price": self.close_price.iloc[0][stock],
+                    "num_shares": self.principal
+                    / len(self.assets)
+                    / self.close_price.iloc[0][stock],
+                }
+            )
+
+        # Initial observation
+        init_holdings = self.portfolio_to_holdings()
+        input_tensor = self.stock_tensors[0]
+        # print("total t:", len(self.stock_tensors))
+
+        return init_holdings, input_tensor
+
+    def step(self, action):
+        done = 0
+        self.time += 1
+        old_input_tensor = self.stock_tensors[self.time - 1]
+        old_portfolio_value = self.portfolio_value
+        old_holdings = self.portfolio_to_holdings()
+
+        new_value = 0
+        for i in range(len(self.portfolio)):
+            weight_adjusted_value = old_portfolio_value * action[i]
+            self.portfolio[i]["weighting"] = action[i]
+            self.portfolio[i]["num_shares"] = (
+                weight_adjusted_value / self.portfolio[i]["price"]
+            )
+
+            # Price and value of a particular stock change in time = t+1
+            self.portfolio[i]["price"] = self.close_price.iloc[
+                self.time * self.rebalance_window - 1
+            ][self.assets[i]]
+            self.portfolio[i]["value"] = (
+                self.portfolio[i]["price"] * self.portfolio[i]["num_shares"]
+            )
+            new_value += self.portfolio[i]["value"]
+
+        new_holdings = self.portfolio_to_holdings()
+        self.portfolio_value = new_value
+        reward = self.portfolio_value - old_portfolio_value
+
+        print(self.time)
+        if self.time == len(self.close_price) // self.rebalance_window - 1:
+            done = 1
+
+        new_input_tensor = self.stock_tensors[self.time]
+
+        return (
+            old_holdings,
+            old_input_tensor,
+            action,
+            reward,
+            new_holdings,
+            new_input_tensor,
+            done,
+        )
