@@ -1,7 +1,7 @@
 from ddpg.agent import Agent
 import numpy as np
 from env.trading_simulator import TradingSimulator
-
+import matplotlib.pyplot as plt 
 # from utils import plotLearning
 
 # config
@@ -10,66 +10,44 @@ assets = [
     "NVDA",
 ]
 rebalance_window = 10
+tx_fee_per_share = 0.005
+principal=1000000
+num_epoch = 5
 
+env = TradingSimulator(principal=principal, assets=assets, start_date="2024-01-01", end_date="2024-11-11", 
+                       rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
-env = TradingSimulator(
-    1000000,
-    assets=assets,
-    start_date="2024-01-01",
-    end_date="2024-11-11",
-    rebalance_window=rebalance_window,
-)
-agent = Agent(
-    alpha=0.000025,
-    beta=0.00025,
-    input_dims=[4, len(assets), rebalance_window, len(assets)],
-    tau=0.001,
-    batch_size=16,
-    layer1_size=400,
-    layer2_size=300,
-    n_actions=len(assets),
-)
+# Default alpha=0.000025, beta=0.00025, tau=0.001, batch_size=64
+agent = Agent(alpha=0.000025, beta=0.00025, input_dims=[4, len(assets), rebalance_window, len(assets)],
+              tau=0.001, batch_size=8, n_actions=len(assets)+1)
+
 # agent.load_models()
 np.random.seed(0)
 
 score_history = []
-for i in range(5):
-    print(f"-----------------Episode {i}-----------------")
-    init_holdings, input_tensor = env.restart()
-    done = False
+for i in range(num_epoch):
+    print(f"-----------------Episode {i+1}-----------------")
+    observation = env.restart()
+    done = 0
     score = 0
     while not done:
-        action = agent.choose_action(input_tensor)
-        print("action: ", action)
-        (
-            old_holdings,
-            old_input_tensor,
-            action,
-            reward,
-            new_holdings,
-            new_input_tensor,
-            done,
-        ) = env.step(action)
-        agent.remember(
-            # old_holdings,
-            old_input_tensor,
-            action,
-            reward,
-            # new_holdings,
-            new_input_tensor,
-            done,
-        )
+        action = agent.choose_action(observation)
+        print("action:", action)
+        new_state, reward, done = env.step(action)
+        print("reward:", reward)
+        agent.remember(observation, action, reward, new_state, done)
         agent.learn()
         score += reward
-        observation = new_input_tensor
+        observation = new_state
     score_history.append(score)
 
     # if i % 25 == 0:
     #    agent.save_models()
-    print(
-        f"------Episode {i}; Score {score:.2f}; Trailing 100 games avg {np.mean(score_history[-100:]):.3f} ------"
-    )
+    print(f"------Episode {i+1} Summary: Score {score:.2f}; Trailing 100 games avg {np.mean(score_history[-100:]):.3f} ------")
 
-
-filename = "LunarLander-alpha000025-beta00025-400-300.png"
+plt.ylabel('Total return')       
+plt.xlabel('Epoch')         
+xAxis = range(1, num_epoch+1)            
+plt.plot(xAxis, score_history)
+plt.show()
 # plotLearning(score_history, filename, window=100)

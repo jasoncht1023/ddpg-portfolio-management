@@ -8,6 +8,7 @@ from .critic_network import CriticNetwork
 
 
 # alpha and beta are the learning rate for actor and critic network, gamma is the discount factor for future reward
+# tau is the "update rate" of the target networks oarameters (param_target = tau * param_online + (1-tau) * param_target)
 class Agent(object):
     def __init__(self, alpha, beta, input_dims, tau, gamma=0.99, 
                  n_actions=2, max_size=1000000, batch_size=64):
@@ -63,10 +64,13 @@ class Agent(object):
         self.memory.store_transition(old_input_tensor, action, reward, new_input_tensor, done)
 
     def learn(self):
+        # Does not begin learning until the replay buffer is filled with at least a batch size
         if self.memory.mem_cntr < self.batch_size:
             return
+        
         old_input_tensor, action, reward, new_input_tensor, done = self.memory.sample_buffer(self.batch_size)
-        # change them to numpy arrays and will be used in critic network
+        
+        # Change them to numpy arrays and will be used in critic network
         reward = T.tensor(reward, dtype=T.float).to(self.critic.device)
         done = T.tensor(done).to(self.critic.device)
         new_input_tensor = T.tensor(new_input_tensor, dtype=T.float).to(self.critic.device)
@@ -77,13 +81,14 @@ class Agent(object):
         self.target_critic.eval()
         self.critic.eval()
 
-        # calculate the target actions like the bellman equation in Q-learning
+        # Calculate the target actions like the bellman equation in Q-learning
 
+        # The targets we want to move towards
         # refactor needed
         target_actions = [
             self.target_actor.forward(input_tensor) for input_tensor in old_input_tensor
         ]
-        critic_value_ = [
+        target_critic_value = [
             self.target_critic.forward(old_input_tensor[i], action)
             for i, action in enumerate(target_actions)
         ]
@@ -93,15 +98,16 @@ class Agent(object):
         ]
 
         target_actions = T.stack(target_actions).to(self.critic.device)
-        critic_value_ = T.stack(critic_value_).to(self.critic.device)
+        target_critic_value = T.stack(target_critic_value).to(self.critic.device)
         critic_value = T.stack(critic_value).to(self.critic.device)
 
         y_arr = []
         for i in range(self.batch_size):
-            y_arr.append(reward[i] + self.gamma * (1 - done[i]) * critic_value_[i])
+            y_arr.append(reward[i] + self.gamma * (1 - done[i]) * target_critic_value[i])
         y_arr = T.tensor(y_arr).to(self.critic.device)
         y_arr = y_arr.view(self.batch_size, 1)
 
+        # Calculation of the loss function for the critic network
         self.critic.train()
         self.critic.optimizer.zero_grad()
         critic_loss = F.mse_loss(critic_value, y_arr)
@@ -109,14 +115,12 @@ class Agent(object):
         self.critic.optimizer.step()
         self.critic.eval()
 
+        # Calculation of the loss function for the actor network
         self.actor.optimizer.zero_grad()
         mu = [self.actor.forward(input_tensor) for input_tensor in old_input_tensor]
         mu = T.stack(mu).to(self.actor.device)
         self.actor.train()
-        actor_loss = [
-            -self.critic.forward(old_input_tensor[i], action)
-            for i, action in enumerate(mu)
-        ]
+        actor_loss = [-self.critic.forward(old_input_tensor[i], action) for i, action in enumerate(mu)]
         actor_loss = T.stack(actor_loss).to(self.actor.device)
         actor_loss = T.mean(actor_loss)
         actor_loss.backward()
@@ -139,20 +143,14 @@ class Agent(object):
         target_critic_dict = dict(target_critic_params)
         target_actor_dict = dict(target_actor_params)
 
+        # Iterate over the dictionaries and look for the keys in the dict and update the value from the network
         for name in critic_state_dict:
-            critic_state_dict[name] = (
-                tau * critic_state_dict[name].clone()
-                + (1 - tau) * target_critic_dict[name].clone()
-            )
-
-        # iterate over the dictionary and look for the keys in the dict and update the value from the network
+            critic_state_dict[name] =  tau * critic_state_dict[name].clone() + (1 - tau) * target_critic_dict[name].clone()
+            
         self.target_critic.load_state_dict(critic_state_dict)
 
         for name in actor_state_dict:
-            actor_state_dict[name] = (
-                tau * actor_state_dict[name].clone()
-                + (1 - tau) * target_actor_dict[name].clone()
-            )
+            actor_state_dict[name] = tau * actor_state_dict[name].clone() + (1 - tau) * target_actor_dict[name].clone()
 
         self.target_actor.load_state_dict(actor_state_dict)
 
