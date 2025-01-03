@@ -19,9 +19,7 @@ class ActorNetwork(nn.Module):
         self.checkpoint_file = os.path.join(chkpt_dir, name + "_ddpg")
 
         self.conv3d = nn.Conv3d(in_channels=4, out_channels=32, kernel_size=(1, 3, 1))
-        self.fc = nn.Linear(
-            reduce(operator.mul, self.tucker_dimension, 1), self.n_actions
-        )
+        self.fc = nn.Linear(reduce(operator.mul, self.tucker_dimension, 1), self.n_actions)
         self.softmax = nn.Softmax(dim=-1)
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
         tl.set_backend("pytorch")

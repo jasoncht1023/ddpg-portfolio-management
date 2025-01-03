@@ -13,13 +13,7 @@ from .actor_network import ActorNetwork
 # Critic / Q-value Network / Q
 # evaluate state/action pairs
 class CriticNetwork(nn.Module):
-    def __init__(
-        self,
-        learning_rate,
-        n_actions,
-        name,
-        chkpt_dir="tmp/ddpg",
-    ):
+    def __init__(self, learning_rate, n_actions, name, chkpt_dir="tmp/ddpg"):
         super(CriticNetwork, self).__init__()
         self.tucker_dimension = [8, 2, 6, 2]
         self.n_actions = n_actions
@@ -28,15 +22,11 @@ class CriticNetwork(nn.Module):
 
         # for state_value
         self.conv3d = nn.Conv3d(in_channels=4, out_channels=32, kernel_size=(1, 3, 1))
-        self.fc = nn.Linear(
-            reduce(operator.mul, self.tucker_dimension, 1), self.n_actions
-        )
+        self.fc = nn.Linear(reduce(operator.mul, self.tucker_dimension, 1), self.n_actions)
         self.softmax = nn.Softmax(dim=-1)
 
         # for action_value
-        self.action_value = nn.Linear(
-            n_actions, reduce(operator.mul, self.tucker_dimension, 1)
-        )
+        self.action_value = nn.Linear(n_actions, reduce(operator.mul, self.tucker_dimension, 1))
         self.q = nn.Linear(reduce(operator.mul, self.tucker_dimension, 1), 1)
 
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
@@ -56,9 +46,7 @@ class CriticNetwork(nn.Module):
         action_value = self.relu(action_value)
 
         state_action_value = T.add(state_value, action_value)
-        state_action_value = F.relu(
-            state_action_value
-        )  # might need to change, relu then add vs add then relu
+        state_action_value = F.relu(state_action_value)  # might need to change, relu then add vs add then relu
         state_action_value = self.q(state_action_value)
 
         return state_action_value

@@ -3,15 +3,10 @@ import pandas as pd
 import numpy as np
 from collections import defaultdict
 import torch
-import torch.nn as nn
-from .tensor_processor import TensorProcessor
-
+import copy
 
 class TradingSimulator:
-
-    transaction_cost = 0.005
-
-    def __init__(self, principal, assets, start_date, end_date, rebalance_window):
+    def __init__(self, principal, assets, start_date, end_date, rebalance_window, tx_fee_per_share):
         self.data = yf.download(assets, start=start_date, end=end_date, group_by="ticker")
         if len(assets) == 1:
             # Create a MultiIndex for the columns
@@ -49,20 +44,9 @@ class TradingSimulator:
             df.loc[0, (stock, "EMA_12")] = df.loc[0, (stock, "Adj Close")]
             df.loc[0, (stock, "EMA_26")] = df.loc[0, (stock, "Adj Close")]
             for i in range(1, len(df)):
-                df.loc[i, (stock, "EMA_12")] = self.EMA(
-                    12,
-                    df.loc[i, (stock, "Adj Close")],
-                    df.loc[i - 1, (stock, "EMA_12")],
-                )
-                df.loc[i, (stock, "EMA_26")] = self.EMA(
-                    26,
-                    df.loc[i, (stock, "Adj Close")],
-                    df.loc[i - 1, (stock, "EMA_26")],
-                )
-            df[(stock, "MACD")] = (
-                df[(stock, "EMA_26")].rolling(window=9).sum()
-                - df[(stock, "EMA_12")].rolling(window=9).sum()
-            )
+                df.loc[i, (stock, "EMA_12")] = self.EMA(12, df.loc[i, (stock, "Adj Close")], df.loc[i - 1, (stock, "EMA_12")])
+                df.loc[i, (stock, "EMA_26")] = self.EMA(26, df.loc[i, (stock, "Adj Close")], df.loc[i - 1, (stock, "EMA_26")])
+            df[(stock, "MACD")] = df[(stock, "EMA_26")].rolling(window=9).sum() - df[(stock, "EMA_12")].rolling(window=9).sum()
             df[(stock, "RSI")] = df[(stock, "Returns")].rolling(14).apply(self.RSI)
 
         close_data = df.drop(df.index[:27])
@@ -82,18 +66,15 @@ class TradingSimulator:
 
         F = defaultdict(dict)  # 4 * n * (m * n)
         n = len(assets)
-        # rebalance_window = 10
         T = len(close_data) // rebalance_window
 
         for t in range(0, T):  # t
             V = close_data[t * rebalance_window : (t + 1) * rebalance_window]  # m days closing data
             for indicator in ["Adj Close", "MA", "RSI", "MACD"]:  # the 4 dimensions
                 for stock in assets:  # n assets
-                    F[t][(stock, indicator)] = (
-                        V[(stock, indicator)]
-                        .values.reshape(rebalance_window, 1)
-                        .dot(corr[indicator][(stock, indicator)].values.reshape(1, n))
-                    )  # m * n tensor for indicator i & stock n
+                    # m * n tensor for indicator i & stock n
+                    F[t][(stock, indicator)] = V[(stock, indicator)].values.reshape(rebalance_window, 1).dot(corr[indicator][(stock, indicator)].values.reshape(1, n))
+
         f = []
         for t in range(0, T):
             f.append([])
@@ -105,14 +86,11 @@ class TradingSimulator:
         f = list(map(torch.Tensor, f))
         self.stock_tensors = f
 
-        # self.tensor_processor = TensorProcessor(len(assets))
-
-        self.portfolio = []
-
         # Stays constant throughout epochs
         self.principal = principal
         self.assets = assets
         self.rebalance_window = rebalance_window
+        self.tx_fee = tx_fee_per_share
 
     def EMA(self, w, price, last):
         a = 2 / (1 + w)
@@ -132,14 +110,7 @@ class TradingSimulator:
     def portfolio_to_holdings(self):
         holdings = []
         for stock in self.portfolio:
-            holdings.extend(
-                [
-                    stock["value"],
-                    stock["weighting"],
-                    stock["price"],
-                    stock["num_shares"],
-                ]
-            )
+            holdings.extend([stock["value"], stock["weighting"], stock["price"], stock["num_shares"]])
         return holdings
 
     def restart(self):
@@ -149,65 +120,62 @@ class TradingSimulator:
         self.time = 0
 
         for stock in self.assets:
-            self.portfolio.append(
-                {
-                    "name": stock,
-                    "value": self.principal / len(self.assets),
-                    "weighting": 1 / len(self.assets),
-                    "price": self.close_price.iloc[0][stock],
-                    "num_shares": self.principal
-                    / len(self.assets)
-                    / self.close_price.iloc[0][stock],
-                }
-            )
+            # Initializing the stock part of the portfolio
+            self.portfolio.append({
+                "name": stock,
+                "value": 0,
+                "weighting": 0,
+                "price": self.close_price.iloc[0][stock],
+                "num_shares": 0
+            })
+        
+        # Initially only cash is held in the portfolio
+        self.portfolio.append({
+            "name": "cash",
+            "value": self.principal,
+            "weighting": 1,
+            "price": 1,
+            "num_shares": self.principal
+        })
 
         # Initial observation
-        init_holdings = self.portfolio_to_holdings()
-        input_tensor = self.stock_tensors[0]
+        initial_input = self.stock_tensors[0]
         # print("total t:", len(self.stock_tensors))
 
-        return init_holdings, input_tensor
+        return initial_input
 
     def step(self, action):
         done = 0
         self.time += 1
-        old_input_tensor = self.stock_tensors[self.time - 1]
         old_portfolio_value = self.portfolio_value
-        old_holdings = self.portfolio_to_holdings()
+        old_portfolio = copy.deepcopy(self.portfolio)
+
+        print("Time step:", self.time)
 
         new_value = 0
         for i in range(len(self.portfolio)):
-            weight_adjusted_value = old_portfolio_value * action[i]
+            weight_adjusted_stock_value = old_portfolio_value * action[i]
             self.portfolio[i]["weighting"] = action[i]
-            self.portfolio[i]["num_shares"] = (
-                weight_adjusted_value / self.portfolio[i]["price"]
-            )
+            self.portfolio[i]["num_shares"] = weight_adjusted_stock_value / self.portfolio[i]["price"]
 
-            # Price and value of a particular stock change in time = t+1
-            self.portfolio[i]["price"] = self.close_price.iloc[
-                self.time * self.rebalance_window - 1
-            ][self.assets[i]]
-            self.portfolio[i]["value"] = (
-                self.portfolio[i]["price"] * self.portfolio[i]["num_shares"]
-            )
+            # Price and value of a particular stock change in time = t+1, price of cash is unchanged
+            if (self.portfolio[i]["name"] != "cash"):
+                self.portfolio[i]["price"] = self.close_price.iloc[self.time * self.rebalance_window - 1][self.assets[i]]
+            self.portfolio[i]["value"] = self.portfolio[i]["price"] * self.portfolio[i]["num_shares"]
             new_value += self.portfolio[i]["value"]
+        
+        total_tx_cost = 0
+        for i in range(len(self.portfolio)-1):
+            total_tx_cost += abs(self.portfolio[i]["num_shares"] - old_portfolio[i]["num_shares"]) * self.tx_fee
+        print("transaction_cost:", total_tx_cost)
+        print()
 
-        new_holdings = self.portfolio_to_holdings()
         self.portfolio_value = new_value
-        reward = self.portfolio_value - old_portfolio_value
+        reward = self.portfolio_value - old_portfolio_value - total_tx_cost
 
-        print(self.time)
-        if self.time == len(self.close_price) // self.rebalance_window - 1:
+        if (self.time == len(self.close_price) // self.rebalance_window - 1):
             done = 1
 
-        new_input_tensor = self.stock_tensors[self.time]
+        new_state = self.stock_tensors[self.time]
 
-        return (
-            old_holdings,
-            old_input_tensor,
-            action,
-            reward,
-            new_holdings,
-            new_input_tensor,
-            done,
-        )
+        return new_state, reward, done

@@ -1,7 +1,7 @@
 import numpy as np
 
 
-# replay buffer stores previous experiences, sample a mini-batch at each time step to update the weights of the neural networks
+# Replay buffer stores previous experiences, sample a mini-batch at each time step to update the weights of the neural networks
 class ReplayBuffer(object):
     def __init__(self, max_size, input_shape, n_actions):
         self.mem_size = max_size
@@ -18,7 +18,7 @@ class ReplayBuffer(object):
         self.new_input_tensor_memory[index] = new_input_tensor
         self.action_memory[index] = action
         self.reward_memory[index] = reward
-        self.terminal_memory[index] = 1 - done  # from bellman equation, to multiply whether the function is over
+        self.terminal_memory[index] = 1 - done  # For bellman equation, to multiply whether or not the episode is over
         self.mem_cntr += 1
 
     def sample_buffer(self, batch_size):
