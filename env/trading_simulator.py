@@ -40,19 +40,22 @@ class TradingSimulator:
         df = df.reset_index()
 
         for stock in assets:
-            df[(stock, "MA")] = df[(stock, "Adj Close")].rolling(window=28).apply(self.MA)
+            df[(stock, "MA")] = df[(stock, "Adj Close")].rolling(window=28).apply(self.__MA)
             df.loc[0, (stock, "EMA_12")] = df.loc[0, (stock, "Adj Close")]
             df.loc[0, (stock, "EMA_26")] = df.loc[0, (stock, "Adj Close")]
             for i in range(1, len(df)):
-                df.loc[i, (stock, "EMA_12")] = self.EMA(12, df.loc[i, (stock, "Adj Close")], df.loc[i - 1, (stock, "EMA_12")])
-                df.loc[i, (stock, "EMA_26")] = self.EMA(26, df.loc[i, (stock, "Adj Close")], df.loc[i - 1, (stock, "EMA_26")])
+                df.loc[i, (stock, "EMA_12")] = self.__EMA(12, df.loc[i, (stock, "Adj Close")], df.loc[i - 1, (stock, "EMA_12")])
+                df.loc[i, (stock, "EMA_26")] = self.__EMA(26, df.loc[i, (stock, "Adj Close")], df.loc[i - 1, (stock, "EMA_26")])
             df[(stock, "MACD")] = df[(stock, "EMA_26")].rolling(window=9).sum() - df[(stock, "EMA_12")].rolling(window=9).sum()
-            df[(stock, "RSI")] = df[(stock, "Returns")].rolling(14).apply(self.RSI)
+            df[(stock, "RSI")] = df[(stock, "Returns")].rolling(14).apply(self.__RSI)
 
         close_data = df.drop(df.index[:27])
         close_data = close_data.reset_index(drop=True)
         to_drop = ["EMA_12", "EMA_26", "Returns"]
         close_data = close_data.drop(columns=[(stock, label) for stock in assets for label in to_drop])
+
+        trading_dates = close_data["Date"].dt.date.astype(str).tolist()
+        self.rebalance_dates = [trading_dates[i] for i in range(len(trading_dates)) if (i+1) % rebalance_window == 0]
 
         # Collect all the Adjusted Close price data
         adj_close_data = close_data.loc[:, close_data.columns.get_level_values(1) == "Adj Close"]
@@ -92,26 +95,48 @@ class TradingSimulator:
         self.rebalance_window = rebalance_window
         self.tx_fee = tx_fee_per_share
 
-    def EMA(self, w, price, last):
+    def __EMA(self, w, price, last):
         a = 2 / (1 + w)
         return a * price + (1 - a) * last
 
-    def MA(self, prices):
+    def __MA(self, prices):
         return sum(prices) / 28
 
-    def MACD(self, long, short):
+    def __MACD(self, long, short):
         return sum(long) - sum(short)
 
-    def RSI(self, returns):
+    def __RSI(self, returns):
         avg_gain = returns[returns > 0].mean()
         avg_loss = -returns[returns < 0].mean()
         return 100 * (1 - 1 / (1 + avg_gain / avg_loss))
 
-    def portfolio_to_holdings(self):
+    def __portfolio_to_holdings(self):
         holdings = []
         for stock in self.portfolio:
             holdings.extend([stock["value"], stock["weighting"], stock["price"], stock["num_shares"]])
         return holdings
+    
+    def sharpe_ratio(self):     
+        # Load the risk free rates and convert to 1-window-days rate
+        risk_free_rates = pd.read_csv('env/30y-treasury-rate.csv')
+        risk_free_rates.columns = ["date", "risk_free_rate"]
+        risk_free_rates["risk_free_rate"] = risk_free_rates["risk_free_rate"] * self.rebalance_window / 365
+
+        # Compute the return rates
+        value_pct_change = pd.Series(self.value_history).pct_change() * 100
+        return_rates = pd.DataFrame({"date": self.rebalance_dates, "return": value_pct_change[1:]})
+        return_rates.columns = ["date", "return_rate"]
+
+        # Combine the risk free rates and return rates
+        df = return_rates.set_index('date').join(risk_free_rates.set_index('date'))
+
+        # Fill missing risk free rates
+        df["risk_free_rate"] = df["risk_free_rate"].interpolate().bfill().ffill()
+
+        df["excess_return_rate"] = df["return_rate"] - df["risk_free_rate"]
+
+        print(df)
+        return df["excess_return_rate"].mean() / df["excess_return_rate"].std()  
 
     def restart(self):
         # Reset the initial portfolio
@@ -119,8 +144,11 @@ class TradingSimulator:
         self.portfolio_value = self.principal
         self.time = 0
 
+        # Portfolio value history for return computation used in evaluation
+        self.value_history = [self.principal]
+
+        # Initializing the stock part of the portfolio
         for stock in self.assets:
-            # Initializing the stock part of the portfolio
             self.portfolio.append({
                 "name": stock,
                 "value": 0,
@@ -140,7 +168,6 @@ class TradingSimulator:
 
         # Initial observation
         initial_input = self.stock_tensors[0]
-        # print("total t:", len(self.stock_tensors))
 
         return initial_input
 
@@ -152,18 +179,22 @@ class TradingSimulator:
 
         print("Time step:", self.time)
 
+        # Compute the new portfolio value after 1 rebalance window
+        # Price and value of a particular stock change in time = t+1, price of cash is unchanged
         new_value = 0
         for i in range(len(self.portfolio)):
-            weight_adjusted_stock_value = old_portfolio_value * action[i]
-            self.portfolio[i]["weighting"] = action[i]
-            self.portfolio[i]["num_shares"] = weight_adjusted_stock_value / self.portfolio[i]["price"]
-
-            # Price and value of a particular stock change in time = t+1, price of cash is unchanged
             if (self.portfolio[i]["name"] != "cash"):
                 self.portfolio[i]["price"] = self.close_price.iloc[self.time * self.rebalance_window - 1][self.assets[i]]
             self.portfolio[i]["value"] = self.portfolio[i]["price"] * self.portfolio[i]["num_shares"]
             new_value += self.portfolio[i]["value"]
         
+        # Adjust the weighting of each asset in the portfolio based on the new portfolio value
+        for i in range(len(self.portfolio)):
+            weight_adjusted_stock_value = new_value * action[i]
+            self.portfolio[i]["weighting"] = action[i]
+            self.portfolio[i]["num_shares"] = weight_adjusted_stock_value / self.portfolio[i]["price"]
+        
+        # Compute the transaction fee based on the number of shares bought/sold
         total_tx_cost = 0
         for i in range(len(self.portfolio)-1):
             total_tx_cost += abs(self.portfolio[i]["num_shares"] - old_portfolio[i]["num_shares"]) * self.tx_fee
@@ -171,11 +202,13 @@ class TradingSimulator:
         print()
 
         self.portfolio_value = new_value
+        self.value_history.append(new_value)
         reward = self.portfolio_value - old_portfolio_value - total_tx_cost
 
-        if (self.time == len(self.close_price) // self.rebalance_window - 1):
+        if (self.time == np.ceil(len(self.close_price) / self.rebalance_window)):           # The episode is ended
             done = 1
-
-        new_state = self.stock_tensors[self.time]
+            new_state = np.zeros((4, len(self.assets), self.rebalance_window, len(self.assets)))
+        else:                                                                               # The episode is not ended
+            new_state = self.stock_tensors[self.time]
 
         return new_state, reward, done

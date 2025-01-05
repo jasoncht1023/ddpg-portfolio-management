@@ -2,9 +2,9 @@ from ddpg.agent import Agent
 import numpy as np
 from env.trading_simulator import TradingSimulator
 import matplotlib.pyplot as plt 
-# from utils import plotLearning
+import os
 
-# config
+# Configurations
 assets = [
     "FUTU",
     "NVDA",
@@ -25,6 +25,7 @@ agent = Agent(alpha=0.000025, beta=0.00025, input_dims=[4, len(assets), rebalanc
 np.random.seed(0)
 
 score_history = []
+sharpe_ratio_history = []
 for i in range(num_epoch):
     print(f"-----------------Episode {i+1}-----------------")
     observation = env.restart()
@@ -40,14 +41,29 @@ for i in range(num_epoch):
         score += reward
         observation = new_state
     score_history.append(score)
+    sharpe_ratio = env.sharpe_ratio()
+    sharpe_ratio_history.append(sharpe_ratio)
 
     # if i % 25 == 0:
     #    agent.save_models()
-    print(f"------Episode {i+1} Summary: Score {score:.2f}; Trailing 100 games avg {np.mean(score_history[-100:]):.3f} ------")
+    print(f"------Episode {i+1} Summary: Score {score:.2f}; Sharpe Ratio {sharpe_ratio:.5f}; Trailing 100 games avg {np.mean(score_history[-100:]):.3f} ------")
 
-plt.ylabel('Total return')       
-plt.xlabel('Epoch')         
-xAxis = range(1, num_epoch+1)            
+# Generating evaluation graphs
+if not os.path.isdir("evaluation"): 
+    os.makedirs("evaluation")
+        
+xAxis = range(1, num_epoch+1) 
+
+plt.title("Total return over epoch")
+plt.xlabel('Epoch') 
+plt.ylabel('Total return')                  
 plt.plot(xAxis, score_history)
-plt.show()
-# plotLearning(score_history, filename, window=100)
+plt.savefig("evaluation/total_return.png", dpi=300, bbox_inches="tight")
+plt.clf()
+
+plt.title("Sharpe Ratio over epoch")
+plt.xlabel('Epoch') 
+plt.ylabel('Sharpe Ratio')                      
+plt.plot(xAxis, sharpe_ratio_history)
+plt.savefig("evaluation/sharpe_ratio.png", dpi=300, bbox_inches="tight")
+
