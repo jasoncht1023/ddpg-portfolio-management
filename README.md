@@ -1,7 +1,7 @@
 # Setup
 
 ## 1. Set up and activate the Python virtual environment
-Please install Python 3.11 (Recommended version: 3.11.5)
+Python 3.11 is required (Recommended version: 3.11.5)
 ```bash
     pip install virtualenv
     virtualenv -p python3.11.5 .venv
@@ -19,8 +19,11 @@ Example installation:
 Or look for customized installation command in https://pytorch.org/
 
 # Updating the dependencies
-Update the dependencies list after you installed new packages through pip using the `deps.update.bat` script \
+Update the dependency list after you installed new packages through pip using the `deps_update.bat` script \
 While in the virtual environment, run:
 ```bash
-    ./deps.update.bat
+    ./deps_update.bat
 ```
+
+# Evaluation
+Total return and Sharpe Ratio over epoch will be generated in `/evaluation` after the training is completed
