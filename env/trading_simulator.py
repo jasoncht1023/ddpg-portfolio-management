@@ -4,10 +4,14 @@ import numpy as np
 from collections import defaultdict
 import torch
 import copy
+from datetime import datetime, timedelta
 
 class TradingSimulator:
     def __init__(self, principal, assets, start_date, end_date, rebalance_window, tx_fee_per_share):
-        self.data = yf.download(assets, start=start_date, end=end_date, group_by="ticker")
+        compute_date = datetime.strptime(start_date, '%Y-%m-%d') - timedelta(days=50)
+        compute_date = compute_date.strftime('%Y-%m-%d')
+
+        self.data = yf.download(assets, start=compute_date, end=end_date, group_by="ticker")
         if len(assets) == 1:
             # Create a MultiIndex for the columns
             multi_index_columns = pd.MultiIndex.from_tuples([(assets[0], col) for col in assets.columns])
@@ -26,6 +30,11 @@ class TradingSimulator:
 
         # Concatenate all return Series into a single DataFrame
         returns = pd.concat(returns_list, axis=1)
+
+        # Get 27 days data before start date for indicators computation
+        returns.reset_index(inplace=True)
+        start_index = returns[returns['Date'] >= start_date].index[0]
+        returns = returns[start_index-27:].set_index('Date')
 
         dates = returns.index
         adj_close = self.data.xs("Adj Close", level=1, axis=1)
@@ -49,7 +58,7 @@ class TradingSimulator:
             df[(stock, "MACD")] = df[(stock, "EMA_26")].rolling(window=9).sum() - df[(stock, "EMA_12")].rolling(window=9).sum()
             df[(stock, "RSI")] = df[(stock, "Returns")].rolling(14).apply(self.__RSI)
 
-        close_data = df.drop(df.index[:27])
+        close_data = df[27:len(df) - (len(df)-27)%10]
         close_data = close_data.reset_index(drop=True)
         to_drop = ["EMA_12", "EMA_26", "Returns"]
         close_data = close_data.drop(columns=[(stock, label) for stock in assets for label in to_drop])
