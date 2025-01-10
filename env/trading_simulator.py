@@ -118,12 +118,6 @@ class TradingSimulator:
         avg_gain = returns[returns > 0].mean()
         avg_loss = -returns[returns < 0].mean()
         return 100 * (1 - 1 / (1 + avg_gain / avg_loss))
-
-    def __portfolio_to_holdings(self):
-        holdings = []
-        for stock in self.portfolio:
-            holdings.extend([stock["value"], stock["weighting"], stock["price"], stock["num_shares"]])
-        return holdings
     
     def sharpe_ratio(self):     
         # Load the risk free rates and convert to 1-window-days rate
@@ -198,10 +192,16 @@ class TradingSimulator:
             new_value += self.portfolio[i]["value"]
         
         # Adjust the weighting of each asset in the portfolio based on the new portfolio value
-        for i in range(len(self.portfolio)):
-            weight_adjusted_stock_value = new_value * action[i]
-            self.portfolio[i]["weighting"] = action[i]
-            self.portfolio[i]["num_shares"] = weight_adjusted_stock_value / self.portfolio[i]["price"]
+        # An empty action array means skipping the portfolio rebalance, not applicable in RL algorithms
+        if (len(action) != 0):
+            for i in range(len(self.portfolio)):
+                weight_adjusted_stock_value = new_value * action[i]
+                self.portfolio[i]["weighting"] = action[i]
+                self.portfolio[i]["num_shares"] = weight_adjusted_stock_value / self.portfolio[i]["price"]
+                self.portfolio[i]["value"] = weight_adjusted_stock_value
+        else:
+            for i in range(len(self.portfolio)):
+                self.portfolio[i]["weighting"] = self.portfolio[i]["value"] / new_value
         
         # Compute the transaction fee based on the number of shares bought/sold
         total_tx_cost = 0
