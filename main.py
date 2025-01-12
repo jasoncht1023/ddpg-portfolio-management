@@ -20,7 +20,7 @@ assets = [
 rebalance_window = 10
 tx_fee_per_share = 0.005
 principal = 1000000
-num_epoch = 10
+num_epoch = 100
 
 # Evaluation settings, 1: mode will be evaluated; 0: mode will not be run
 evaluation_mode = {
@@ -34,30 +34,30 @@ return_history = {}
 sharpe_ratio_history = {}
 
 # Trading environment initialization
-env = TradingSimulator(principal=principal, assets=assets, start_date="2024-01-01", end_date="2024-12-31", 
+env = TradingSimulator(principal=principal, assets=assets, start_date="2015-01-01", end_date="2019-12-31", 
                        rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 if (evaluation_mode["ddpg"] == 1):
-    # Default alpha=0.000025, beta=0.00025, tau=0.001, batch_size=64
-    agent = Agent(alpha=0.000025, beta=0.00025, input_dims=[4, len(assets), rebalance_window, len(assets)],
-                tau=0.001, batch_size=8, n_actions=len(assets)+1)
+    # Default alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
+    agent = Agent(alpha=0.00025, beta=0.0025, gamma=0.99, tau=0.001, 
+                  input_dims=[4, len(assets), rebalance_window, len(assets)], batch_size=64, n_actions=len(assets)+1)
 
     agent.load_models()
-    np.random.seed(0)
+    # np.random.seed(0)
 
     return_history["ddpg"] = []
     sharpe_ratio_history["ddpg"] = []
     print("--------------------DDPG--------------------")
     for i in range(num_epoch):
-        print(f"-----------------Episode {i+1}-----------------")
+        # print(f"-----------------Episode {i+1}-----------------")
         observation = env.restart()
         done = 0
         total_return = 0
         while not done:
             action = agent.choose_action(observation)
-            print("action:", action)
+            # print("action:", action)
             new_state, reward, done = env.step(action)
-            print("reward:", reward)
+            # print("reward:", reward)
             agent.remember(observation, action, reward, new_state, done)
             agent.learn()
             total_return += reward
@@ -68,7 +68,7 @@ if (evaluation_mode["ddpg"] == 1):
 
         if i % 5 == 0:
             agent.save_models()
-        print(f"------Episode {i+1} Summary: Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------")
+        print(f"------Episode {i+1} Summary: Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
 
 if (evaluation_mode["uniform_with_rebalance"] == 1):
     print("--------------------Uniform Weighting with Rebalancing--------------------")
@@ -76,7 +76,7 @@ if (evaluation_mode["uniform_with_rebalance"] == 1):
     done = 0
     total_return = 0
     while not done:
-        action = [1/(len(assets)+1)] * (len(assets)+1)
+        action = [1/(len(assets))] * (len(assets)) + [0]
         print("action:", action)
         new_state, reward, done = env.step(action)
         print("reward:", reward)
@@ -93,7 +93,7 @@ if (evaluation_mode["uniform_without_rebalance"] == 1):
     observation = env.restart()
     done = 0
     total_return = 0
-    action = [1/(len(assets)+1)] * (len(assets)+1)
+    action = [1/(len(assets))] * (len(assets)) + [0]
     print("action:", action)
     new_state, reward, done = env.step(action)
     print("reward:", reward)
@@ -139,3 +139,6 @@ for mode in evaluation_mode:
 
 plt.legend()
 plt.savefig("evaluation/sharpe_ratio.png", dpi=300, bbox_inches="tight")
+
+if (evaluation_mode["ddpg"] == 1):
+    print(f"DDPG average performance: Total Return {np.mean(return_history['ddpg'])}; Sharpe Ratio {np.mean(sharpe_ratio_history['ddpg'])}")

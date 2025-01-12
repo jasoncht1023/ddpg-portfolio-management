@@ -12,38 +12,29 @@ import os
 # alpha and beta are the learning rate for actor and critic network, gamma is the discount factor for future reward
 # tau is the "update rate" of the target networks oarameters (param_target = tau * param_online + (1-tau) * param_target)
 class Agent(object):
-    def __init__(self, alpha, beta, input_dims, tau, gamma=0.99, 
-                 n_actions=2, max_size=100000, batch_size=64):
+    def __init__(self, alpha, beta, input_dims, tau, gamma, n_actions, max_size=500000, batch_size=64):
         self.gamma = gamma
         self.tau = tau
         self.memory = ReplayBuffer(max_size, input_dims, n_actions)
         self.batch_size = batch_size
 
-        # self.actor = ActorNetwork(alpha, input_dims, layer1_size,
-        #                           layer2_size, n_actions=n_actions,
-        #                           name='Actor')
-        # self.critic = CriticNetwork(beta, input_dims, layer1_size,
-        #                             layer2_size, n_actions=n_actions,
-        #                             name='Critic')
+        self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
+                                  input_dims=input_dims, fc_dims=400, name="actor", chkpt_dir="temp")
 
-        # self.target_actor = ActorNetwork(alpha, input_dims, layer1_size,
-        #                                  layer2_size, n_actions=n_actions,
-        #                                  name='TargetActor')
-        # self.target_critic = CriticNetwork(beta, input_dims, layer1_size,
-        #                                    layer2_size, n_actions=n_actions,
-        #                                    name='TargetCritic')
+        self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
+                                    input_dims=input_dims, fc_dims=400, name="critic", chkpt_dir="temp")
 
-        self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, name="actor", chkpt_dir="temp")
+        self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
+                                         input_dims=input_dims, fc_dims=400, name="target_actor", chkpt_dir="temp")
 
-        self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, name="critic", chkpt_dir="temp")
-
-        self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, name="target_actor", chkpt_dir="temp")
-
-        self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, name="target_critic", chkpt_dir="temp")
+        self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
+                                           input_dims=input_dims, fc_dims=400, name="target_critic", chkpt_dir="temp")
 
         self.noise = OUActionNoise(mu=np.zeros(n_actions))
 
         self.softmax = nn.Softmax(dim=-1)
+
+        self.n_actions = n_actions
 
         self.update_network_parameters(tau=1)
 
@@ -51,13 +42,16 @@ class Agent(object):
         self.actor.eval()
         observation = T.tensor(observation, dtype=T.float).to(self.actor.device)
         mu = self.actor.forward(observation).to(self.actor.device)
+        # print("mu:", mu)
         mu_prime = mu + T.tensor(self.noise(), dtype=T.float).to(self.actor.device)
+        # mu_prime = mu + T.tensor(np.random.normal(scale=0.05, size=self.n_actions)).to(self.actor.device)        # Adding gaussian noise
         self.actor.train()
-        print("mu_prime after adding noise:", mu_prime)
+        # print("mu_prime after adding noise:", mu_prime)
         mu_prime = self.softmax(mu_prime)               # actions sum to 1
-        mu_prime = mu_prime / mu_prime.sum()       
+        # print("softmax:", mu_prime)       
+        mu_prime = mu_prime
 
-        return mu_prime.cpu().detach().numpy()
+        return mu_prime.cpu().detach().numpy()   
 
     def remember(self, old_input_tensor, action, reward, new_input_tensor, done):
         self.memory.store_transition(old_input_tensor, action, reward, new_input_tensor, done)

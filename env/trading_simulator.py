@@ -180,7 +180,7 @@ class TradingSimulator:
         old_portfolio_value = self.portfolio_value
         old_portfolio = copy.deepcopy(self.portfolio)
 
-        print("Time step:", self.time)
+        # print("Time step:", self.time)
 
         # Compute the new portfolio value after 1 rebalance window
         # Price and value of a particular stock change in time = t+1, price of cash is unchanged
@@ -207,11 +207,12 @@ class TradingSimulator:
         total_tx_cost = 0
         for i in range(len(self.portfolio)-1):
             total_tx_cost += abs(self.portfolio[i]["num_shares"] - old_portfolio[i]["num_shares"]) * self.tx_fee
-        print("transaction_cost:", total_tx_cost)
-        print()
+        # print("transaction_cost:", total_tx_cost)
+        # print()
 
         self.portfolio_value = new_value
         self.value_history.append(new_value)
+        # reward = np.log((self.portfolio_value - old_portfolio_value - total_tx_cost) / old_portfolio_value)
         reward = self.portfolio_value - old_portfolio_value - total_tx_cost
 
         if (self.time == np.ceil(len(self.close_price) / self.rebalance_window)):           # The episode is ended

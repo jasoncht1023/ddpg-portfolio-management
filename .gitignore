@@ -3,4 +3,4 @@
 test.py
 __pycache__
 /evaluation
-/temp
+/temp*
