@@ -52,7 +52,7 @@ class CriticNetwork(nn.Module):
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
         tl.set_backend("pytorch")
 
-        self.device = T.device("cuda:0" if T.cuda.is_available() else "cuda:1")
+        self.device = T.device("cuda:0" if T.cuda.is_available() else "cpu")
         self.to(self.device)
 
     def forward(self, state, action):
