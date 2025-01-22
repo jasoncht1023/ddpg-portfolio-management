@@ -1,64 +1,58 @@
 import torch as T
 import torch.nn.functional as F
+import torch.nn as nn
 import numpy as np
 from .ou_action_noise import OUActionNoise
 from .replay_buffer import ReplayBuffer
 from .actor_network import ActorNetwork
 from .critic_network import CriticNetwork
+import os
 
 
 # alpha and beta are the learning rate for actor and critic network, gamma is the discount factor for future reward
 # tau is the "update rate" of the target networks oarameters (param_target = tau * param_online + (1-tau) * param_target)
 class Agent(object):
-    def __init__(self, alpha, beta, input_dims, tau, gamma=0.99, 
-                 n_actions=2, max_size=1000000, batch_size=64):
+    def __init__(self, alpha, beta, input_dims, tau, gamma, n_actions, max_size=500000, batch_size=64):
         self.gamma = gamma
         self.tau = tau
         self.memory = ReplayBuffer(max_size, input_dims, n_actions)
         self.batch_size = batch_size
 
-        # self.actor = ActorNetwork(alpha, input_dims, layer1_size,
-        #                           layer2_size, n_actions=n_actions,
-        #                           name='Actor')
-        # self.critic = CriticNetwork(beta, input_dims, layer1_size,
-        #                             layer2_size, n_actions=n_actions,
-        #                             name='Critic')
+        self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
+                                  input_dims=input_dims, fc_dims=400, name="actor", chkpt_dir="temp")
 
-        # self.target_actor = ActorNetwork(alpha, input_dims, layer1_size,
-        #                                  layer2_size, n_actions=n_actions,
-        #                                  name='TargetActor')
-        # self.target_critic = CriticNetwork(beta, input_dims, layer1_size,
-        #                                    layer2_size, n_actions=n_actions,
-        #                                    name='TargetCritic')
+        self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
+                                    input_dims=input_dims, fc_dims=400, name="critic", chkpt_dir="temp")
 
-        self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, name="Actor")
+        self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
+                                         input_dims=input_dims, fc_dims=400, name="target_actor", chkpt_dir="temp")
 
-        self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, name="Critic")
-
-        self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, name="TargetActor")
-
-        self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, name="TargetCritic")
+        self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
+                                           input_dims=input_dims, fc_dims=400, name="target_critic", chkpt_dir="temp")
 
         self.noise = OUActionNoise(mu=np.zeros(n_actions))
+
+        self.softmax = nn.Softmax(dim=-1)
+
+        self.n_actions = n_actions
 
         self.update_network_parameters(tau=1)
 
     def choose_action(self, observation):
         self.actor.eval()
         observation = T.tensor(observation, dtype=T.float).to(self.actor.device)
+        # observation = observation.clone().detach().requires_grad_(True).to(self.actor.device)
         mu = self.actor.forward(observation).to(self.actor.device)
+        # print("mu:", mu)
         mu_prime = mu + T.tensor(self.noise(), dtype=T.float).to(self.actor.device)
+        # mu_prime = mu + T.tensor(np.random.normal(scale=0.05, size=self.n_actions)).to(self.actor.device)        # Adding gaussian noise
         self.actor.train()
-        # return mu_prime.cpu().detach().numpy()
+        # print("mu_prime after adding noise:", mu_prime)
+        mu_prime = self.softmax(mu_prime)                       # Actions sum to 1
+        # print("softmax:", mu_prime)       
+        mu_prime = mu_prime
 
-        # For testing only, uncomment the above return statement and delete the below code
-        mu_prime = mu_prime.cpu().detach().numpy()
-        print("untransformed mu_prime:", mu_prime)
-        mu_prime = np.array(list(map(abs, mu_prime)))
-        print("mu_prime:", mu_prime)
-        mu_prime = mu_prime / mu_prime.sum()            # actions sum to 1
-
-        return mu_prime
+        return mu_prime.cpu().detach().numpy()   
 
     def remember(self, old_input_tensor, action, reward, new_input_tensor, done):
         self.memory.store_transition(old_input_tensor, action, reward, new_input_tensor, done)
@@ -69,6 +63,7 @@ class Agent(object):
             return
         
         old_input_tensor, action, reward, new_input_tensor, done = self.memory.sample_buffer(self.batch_size)
+        # old_input_tensor, action, reward, new_input_tensor, done = self.memory.pop_buffer()
         
         # Change them to numpy arrays and will be used in critic network
         reward = T.tensor(reward, dtype=T.float).to(self.critic.device)
@@ -86,10 +81,10 @@ class Agent(object):
         # The targets we want to move towards
         # refactor needed
         target_actions = [
-            self.target_actor.forward(input_tensor) for input_tensor in old_input_tensor
+            self.target_actor.forward(input_tensor) for input_tensor in new_input_tensor
         ]
         target_critic_value = [
-            self.target_critic.forward(old_input_tensor[i], action)
+            self.target_critic.forward(new_input_tensor[i], action)
             for i, action in enumerate(target_actions)
         ]
         critic_value = [
@@ -171,6 +166,9 @@ class Agent(object):
         """
 
     def save_models(self):
+        if not os.path.isdir("temp"): 
+            os.makedirs("temp")
+
         self.actor.save_checkpoint()
         self.target_actor.save_checkpoint()
         self.critic.save_checkpoint()

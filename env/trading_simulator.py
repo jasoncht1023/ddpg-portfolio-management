@@ -118,12 +118,6 @@ class TradingSimulator:
         avg_gain = returns[returns > 0].mean()
         avg_loss = -returns[returns < 0].mean()
         return 100 * (1 - 1 / (1 + avg_gain / avg_loss))
-
-    def __portfolio_to_holdings(self):
-        holdings = []
-        for stock in self.portfolio:
-            holdings.extend([stock["value"], stock["weighting"], stock["price"], stock["num_shares"]])
-        return holdings
     
     def sharpe_ratio(self):     
         # Load the risk free rates and convert to 1-window-days rate
@@ -144,7 +138,7 @@ class TradingSimulator:
 
         df["excess_return_rate"] = df["return_rate"] - df["risk_free_rate"]
 
-        print(df)
+        # print(df)
         return df["excess_return_rate"].mean() / df["excess_return_rate"].std()  
 
     def restart(self):
@@ -186,7 +180,7 @@ class TradingSimulator:
         old_portfolio_value = self.portfolio_value
         old_portfolio = copy.deepcopy(self.portfolio)
 
-        print("Time step:", self.time)
+        # print("Time step:", self.time)
 
         # Compute the new portfolio value after 1 rebalance window
         # Price and value of a particular stock change in time = t+1, price of cash is unchanged
@@ -198,20 +192,25 @@ class TradingSimulator:
             new_value += self.portfolio[i]["value"]
         
         # Adjust the weighting of each asset in the portfolio based on the new portfolio value
-        for i in range(len(self.portfolio)):
-            weight_adjusted_stock_value = new_value * action[i]
-            self.portfolio[i]["weighting"] = action[i]
-            self.portfolio[i]["num_shares"] = weight_adjusted_stock_value / self.portfolio[i]["price"]
+        # An empty action array means skipping the portfolio rebalance, not applicable in RL algorithms
+        if (len(action) != 0):
+            for i in range(len(self.portfolio)):
+                weight_adjusted_stock_value = new_value * action[i]
+                self.portfolio[i]["weighting"] = action[i]
+                self.portfolio[i]["num_shares"] = weight_adjusted_stock_value / self.portfolio[i]["price"]
+                self.portfolio[i]["value"] = weight_adjusted_stock_value
+        else:
+            for i in range(len(self.portfolio)):
+                self.portfolio[i]["weighting"] = self.portfolio[i]["value"] / new_value
         
         # Compute the transaction fee based on the number of shares bought/sold
         total_tx_cost = 0
         for i in range(len(self.portfolio)-1):
             total_tx_cost += abs(self.portfolio[i]["num_shares"] - old_portfolio[i]["num_shares"]) * self.tx_fee
-        print("transaction_cost:", total_tx_cost)
-        print()
 
         self.portfolio_value = new_value
         self.value_history.append(new_value)
+        # reward = np.log((self.portfolio_value - old_portfolio_value - total_tx_cost) / old_portfolio_value)
         reward = self.portfolio_value - old_portfolio_value - total_tx_cost
 
         if (self.time == np.ceil(len(self.close_price) / self.rebalance_window)):           # The episode is ended
