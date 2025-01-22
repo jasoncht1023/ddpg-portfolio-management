@@ -41,13 +41,14 @@ class Agent(object):
     def choose_action(self, observation):
         self.actor.eval()
         observation = T.tensor(observation, dtype=T.float).to(self.actor.device)
+        # observation = observation.clone().detach().requires_grad_(True).to(self.actor.device)
         mu = self.actor.forward(observation).to(self.actor.device)
         # print("mu:", mu)
         mu_prime = mu + T.tensor(self.noise(), dtype=T.float).to(self.actor.device)
         # mu_prime = mu + T.tensor(np.random.normal(scale=0.05, size=self.n_actions)).to(self.actor.device)        # Adding gaussian noise
         self.actor.train()
         # print("mu_prime after adding noise:", mu_prime)
-        mu_prime = self.softmax(mu_prime)               # actions sum to 1
+        mu_prime = self.softmax(mu_prime)                       # Actions sum to 1
         # print("softmax:", mu_prime)       
         mu_prime = mu_prime
 
@@ -62,6 +63,7 @@ class Agent(object):
             return
         
         old_input_tensor, action, reward, new_input_tensor, done = self.memory.sample_buffer(self.batch_size)
+        # old_input_tensor, action, reward, new_input_tensor, done = self.memory.pop_buffer()
         
         # Change them to numpy arrays and will be used in critic network
         reward = T.tensor(reward, dtype=T.float).to(self.critic.device)

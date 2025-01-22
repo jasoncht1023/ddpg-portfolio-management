@@ -138,7 +138,7 @@ class TradingSimulator:
 
         df["excess_return_rate"] = df["return_rate"] - df["risk_free_rate"]
 
-        print(df)
+        # print(df)
         return df["excess_return_rate"].mean() / df["excess_return_rate"].std()  
 
     def restart(self):
@@ -207,8 +207,6 @@ class TradingSimulator:
         total_tx_cost = 0
         for i in range(len(self.portfolio)-1):
             total_tx_cost += abs(self.portfolio[i]["num_shares"] - old_portfolio[i]["num_shares"]) * self.tx_fee
-        # print("transaction_cost:", total_tx_cost)
-        # print()
 
         self.portfolio_value = new_value
         self.value_history.append(new_value)
