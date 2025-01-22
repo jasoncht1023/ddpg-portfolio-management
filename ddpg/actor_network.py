@@ -10,7 +10,6 @@ import numpy as np
 class ActorNetwork(nn.Module):
     def __init__(self, learning_rate, n_actions, input_dims, fc_dims, name, chkpt_dir="tmp/ddpg"):
         super(ActorNetwork, self).__init__()
-        # self.tucker_dimension = [8, 2, 6, 2]
         self.n_actions = n_actions
         self.input_size = 32 * input_dims[1] * (input_dims[2]-2) * input_dims[3]
         self.fc1_dims = fc_dims
@@ -18,8 +17,6 @@ class ActorNetwork(nn.Module):
         self.checkpoint_file = os.path.join(chkpt_dir, name + "_ddpg")
 
         self.conv3d = nn.Conv3d(in_channels=4, out_channels=32, kernel_size=(1, 3, 1))
-        # self.fc = nn.Linear(reduce(operator.mul, self.tucker_dimension, 1), self.n_actions)
-        # self.fc = nn.Linear(np.prod(input_dims), self.fc_dims)
         self.fc1 = nn.Linear(self.input_size, self.fc1_dims)
         self.bn1 = nn.LayerNorm(self.fc1_dims)
         f1 = 1./np.sqrt(self.fc1.weight.data.size()[0])
@@ -40,17 +37,13 @@ class ActorNetwork(nn.Module):
         # self.mu = nn.Linear(self.fc1_dims, self.n_actions)
         self.softmax = nn.Softmax(dim=-1)
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
-        # tl.set_backend("pytorch")
 
-        self.device = T.device("cuda:0" if T.cuda.is_available() else "cuda:1")
+        self.device = T.device("cuda:0" if T.cuda.is_available() else "cpu")
         self.to(self.device)
 
     def forward(self, x):
         x = self.conv3d(x)
         x = self.relu(x)
-        # core, factors = tucker(x, rank=self.tucker_dimension)
-        # core.requires_grad_(True)
-        # x = T.flatten(core)
         x = T.flatten(x)
         x = self.fc1(x)
         x = self.bn1(x)
