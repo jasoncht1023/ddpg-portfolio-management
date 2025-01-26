@@ -71,21 +71,22 @@ class TradingSimulator:
         adj_close_data.columns = adj_close_data.columns.droplevel(1)
         self.close_price = adj_close_data
 
-        corr = {}
-        indicators = ["Adj Close", "MA", "RSI", "MACD"]
-        for indicator in indicators:
-            corr[indicator] = close_data.filter([(stock, indicator) for stock in assets], axis=1).corr()
-
         F = defaultdict(dict)  # 4 * n * (m * n)
         n = len(assets)
         T = len(close_data) // rebalance_window
 
-        for t in range(0, T):  # t
-            V = close_data[t * rebalance_window : (t + 1) * rebalance_window]  # m days closing data
-            for indicator in ["Adj Close", "MA", "RSI", "MACD"]:  # the 4 dimensions
-                for stock in assets:  # n assets
-                    # m * n tensor for indicator i & stock n
-                    F[t][(stock, indicator)] = V[(stock, indicator)].values.reshape(rebalance_window, 1).dot(corr[indicator][(stock, indicator)].values.reshape(1, n))
+        corr = [{} for _ in range(T)]
+        indicators = ["Adj Close", "MA", "RSI", "MACD"]
+
+        for t in range(0, T): # t
+            V = close_data[t*rebalance_window:(t+1)*rebalance_window] # m days closing data
+            lag_t = max(0, t - 5)
+            COR = close_data[lag_t*rebalance_window:(t+1)*rebalance_window]
+
+            for indicator in indicators: # the 4 dimensions
+                corr[t][indicator] = COR.filter([(stock, indicator) for stock in assets], axis=1).corr() # 60 days correlation matrix
+                for stock in assets: # n assets
+                    F[t][(stock, indicator)] = V[(stock, indicator)].values.reshape(rebalance_window,1).dot(corr[t][indicator][(stock, indicator)].values.reshape(1,n)) # m * n tensor for indicator i & stock n
 
         f = []
         for t in range(0, T):
@@ -95,7 +96,7 @@ class TradingSimulator:
                 for stock in assets:
                     a.append(F[t][(stock, indicator)])
                 f[-1].append(a)
-        f = list(map(torch.Tensor, f))
+        f = list(map(torch.Tensor, np.array(f)))
         self.stock_tensors = f
 
         # Stays constant throughout epochs
