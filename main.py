@@ -1,7 +1,7 @@
 import pandas as pd
-from ddpg.agent import Agent
+from ddpg.agent_v2 import Agent
 import numpy as np
-from env.trading_simulator import TradingSimulator
+from env.trading_simulator_v2 import TradingSimulator
 import matplotlib.pyplot as plt 
 import os
 from scipy.optimize import minimize
@@ -9,27 +9,26 @@ from scipy.optimize import minimize
 # Configurations
 # Portfolio settings
 assets = [
-    "MMM",
-    "NVDA",
-    "GS",
-    "NKE",
-    "AXP",
-    "HD",
-    "PG",
-    "AMGN",
-    "HON"
+    "APA",
+    "LNC",
+    "RCL",
+    "FCX",
+    "GOLD",
+    "FDP",
+    "NEM",
+    "BMY"
 ]
-rebalance_window = 10
+rebalance_window = 1
 tx_fee_per_share = 0.005
 principal = 1000000
-num_epoch = 100
+num_epoch = 300
 
 # Either Training mode or Evaluation mode should be run at a time
 is_training_mode = False
 
 # Training settings, 1: mode will be trained; 0: mode will not be run
 training_mode = {
-    "ddpg": 0
+    "ddpg": 1
 }
 
 # Testing settings, 1: mode will be evaluated; 0: mode will not be run
@@ -46,12 +45,12 @@ return_history = {}
 sharpe_ratio_history = {}
 
 # Trading environment initialization
-env = TradingSimulator(principal=principal, assets=assets, start_date="2023-01-01", end_date="2024-12-31", 
+env = TradingSimulator(principal=principal, assets=assets, start_date="1999-07-01", end_date="2016-07-31", 
                        rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 # Default alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
-agent = Agent(alpha=0.00025, beta=0.0025, gamma=0.99, tau=0.001, 
-              input_dims=[4, len(assets), rebalance_window, len(assets)], batch_size=32, n_actions=len(assets)+1)
+agent = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.09, 
+              input_dims=[len(assets) * 5 + 2], batch_size=128, n_actions=len(assets)+1)
 
 # Training algorithms:
 if (is_training_mode == True):
@@ -62,17 +61,19 @@ if (is_training_mode == True):
         return_history["ddpg"] = []
         sharpe_ratio_history["ddpg"] = []
         print("--------------------DDPG Training--------------------")
-        for i in range(num_epoch):
-            print(f"-----------------Episode {i+1}-----------------")
+        for i in range(1, num_epoch+1):
+            print(f"-----------------Episode {i}-----------------")
             observation = env.restart()
             done = 0
             total_return = 0
             while not done:
-                action = agent.choose_action(observation)
+                action = agent.choose_action(observation, is_training_mode)
+                # print("action:", action)
                 new_state, reward, done = env.step(action)
                 agent.remember(observation, action, reward, new_state, done)
                 agent.learn()
                 total_return += reward
+                # print("reward:", reward)
                 observation = new_state
             return_history["ddpg"].append(total_return)
             sharpe_ratio = env.sharpe_ratio()
@@ -80,7 +81,23 @@ if (is_training_mode == True):
 
             if i % 5 == 0:
                 agent.save_models()
-            print(f"------Episode {i+1} Summary: Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
+                xAxis = range(1, i+1)
+
+                plt.title("Total return over epoch")
+                plt.xlabel('Epoch') 
+                plt.ylabel('Total return')
+                plt.plot(xAxis, return_history["ddpg"], label="ddpg")
+                plt.legend()
+                plt.savefig("evaluation/training_total_return.png", dpi=300, bbox_inches="tight")
+                plt.clf()
+                plt.title("Sharpe Ratio over epoch")
+                plt.xlabel('Epoch') 
+                plt.ylabel('Sharpe Ratio')   
+                plt.plot(xAxis, sharpe_ratio_history["ddpg"], label="ddpg")
+                plt.legend()
+                plt.savefig("evaluation/training_sharpe_ratio.png", dpi=300, bbox_inches="tight")
+                plt.clf()
+            print(f"------Episode {i} Summary: Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
 
         print(f"DDPG average performance: Total Return {np.mean(return_history['ddpg'])}; Sharpe Ratio {np.mean(sharpe_ratio_history['ddpg'])}")
 # Testing algorithms:
@@ -94,13 +111,14 @@ else:
         done = 0
         total_return = 0
         while not done:
-            action = agent.choose_action(observation)
+            action = agent.choose_action(observation, is_training_mode)
             new_state, reward, done = env.step(action)
             total_return += reward
             observation = new_state
             return_history["ddpg"].append(reward)
         sharpe_ratio = env.sharpe_ratio()
-        print(f"------Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
+        portfolio_value = env.total_portfolio_value()
+        print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
 
     if (testing_mode["uniform_with_rebalance"] == 1):
         return_history["uniform_with_rebalance"] = []
@@ -114,7 +132,8 @@ else:
             total_return += reward
             return_history["uniform_with_rebalance"].append(reward)
         sharpe_ratio = env.sharpe_ratio()
-        print(f"------Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
+        portfolio_value = env.total_portfolio_value()
+        print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
 
     if (testing_mode["uniform_without_rebalance"] == 1):
         return_history["uniform_without_rebalance"] = []
@@ -132,7 +151,8 @@ else:
             total_return += reward
             return_history["uniform_without_rebalance"].append(reward)
         sharpe_ratio = env.sharpe_ratio()
-        print(f"------Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
+        portfolio_value = env.total_portfolio_value()
+        print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
 
     if (testing_mode["basic_MPT"] == 1):
         return_history["basic_MPT"] = []
