@@ -98,7 +98,7 @@ else:
             new_state, reward, done = env.step(action)
             total_return += reward
             observation = new_state
-            return_history["ddpg"].append(reward)
+            return_history["ddpg"].append(total_return)
         sharpe_ratio = env.sharpe_ratio()
         print(f"------Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
 
@@ -112,7 +112,7 @@ else:
             action = [1/(len(assets))] * (len(assets)) + [0]
             new_state, reward, done = env.step(action)
             total_return += reward
-            return_history["uniform_with_rebalance"].append(reward)
+            return_history["uniform_with_rebalance"].append(total_return)
         sharpe_ratio = env.sharpe_ratio()
         print(f"------Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
 
@@ -125,12 +125,12 @@ else:
         action = [1/(len(assets))] * (len(assets)) + [0]
         new_state, reward, done = env.step(action)
         total_return += reward
-        return_history["uniform_without_rebalance"].append(reward)
+        return_history["uniform_without_rebalance"].append(total_return)
         while not done:
             action = []
             new_state, reward, done = env.step(action)
             total_return += reward
-            return_history["uniform_without_rebalance"].append(reward)
+            return_history["uniform_without_rebalance"].append(total_return)
         sharpe_ratio = env.sharpe_ratio()
         print(f"------Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
 
@@ -181,7 +181,7 @@ else:
             action = list(weights) + [0]
             new_state, reward, done = env.step(action)
             total_return += reward
-            return_history["basic_MPT"].append(reward)
+            return_history["basic_MPT"].append(total_return)
         sharpe_ratio = env.sharpe_ratio()
         print(f"------Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
 
