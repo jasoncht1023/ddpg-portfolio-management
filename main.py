@@ -13,10 +13,10 @@ assets = [
     "LNC",
     "RCL",
     "FCX",
-    "GOLD",
-    "FDP",
-    "NEM",
-    "BMY"
+    # "GOLD",
+    # "FDP",
+    # "NEM",
+    # "BMY"
 ]
 rebalance_window = 1
 tx_fee_per_share = 0.005
@@ -37,7 +37,7 @@ testing_mode = {
     "ddpg": 1,
     "uniform_with_rebalance": 1,
     "uniform_without_rebalance": 1,
-    "basic_MPT": 1
+    "basic_MPT": 0
 }
 
 # Evaluation metrics
@@ -45,12 +45,15 @@ return_history = {}
 sharpe_ratio_history = {}
 
 # Trading environment initialization
-env = TradingSimulator(principal=principal, assets=assets, start_date="1999-07-01", end_date="2016-07-31", 
+env = TradingSimulator(principal=principal, assets=assets, start_date="1999-07-01", end_date="2005-07-31", 
                        rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 # Default alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
 agent = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.09, 
               input_dims=[len(assets) * 5 + 2], batch_size=128, n_actions=len(assets)+1)
+
+actor_loss_history = []
+critic_loss_history = []
 
 # Training algorithms:
 if (is_training_mode == True):
@@ -66,18 +69,26 @@ if (is_training_mode == True):
             observation = env.restart()
             done = 0
             total_return = 0
+            total_actor_loss = 0
+            total_critic_loss = 0
             while not done:
                 action = agent.choose_action(observation, is_training_mode)
-                # print("action:", action)
                 new_state, reward, done = env.step(action)
+                if (i % 5 == 0 or i == 1):
+                    print("observation:", observation)
+                    print("action:", action, "\n")
                 agent.remember(observation, action, reward, new_state, done)
-                agent.learn()
+                actor_loss, critic_loss = agent.learn() 
+                total_actor_loss += actor_loss
+                total_critic_loss += critic_loss       
                 total_return += reward
                 # print("reward:", reward)
                 observation = new_state
             return_history["ddpg"].append(total_return)
             sharpe_ratio = env.sharpe_ratio()
             sharpe_ratio_history["ddpg"].append(sharpe_ratio)
+            actor_loss_history.append(total_actor_loss)
+            critic_loss_history.append(total_critic_loss)
 
             if i % 5 == 0:
                 agent.save_models()
@@ -97,6 +108,19 @@ if (is_training_mode == True):
                 plt.legend()
                 plt.savefig("evaluation/training_sharpe_ratio.png", dpi=300, bbox_inches="tight")
                 plt.clf()
+
+                plt.title("Actor Loss")
+                plt.xlabel('Progress') 
+                plt.ylabel('Actor Loss')
+                plt.plot(xAxis, actor_loss_history)
+                plt.savefig("evaluation/actor_loss.png", dpi=300, bbox_inches="tight")
+                plt.clf()
+                plt.title("Critic Loss")
+                plt.xlabel('Progress') 
+                plt.ylabel('Critic Loss')   
+                plt.plot(xAxis, critic_loss_history)
+                plt.savefig("evaluation/critic_loss.png", dpi=300, bbox_inches="tight")
+                plt.clf()
             print(f"------Episode {i} Summary: Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
 
         print(f"DDPG average performance: Total Return {np.mean(return_history['ddpg'])}; Sharpe Ratio {np.mean(sharpe_ratio_history['ddpg'])}")
@@ -112,10 +136,12 @@ else:
         total_return = 0
         while not done:
             action = agent.choose_action(observation, is_training_mode)
+            print(action, "\n")
             new_state, reward, done = env.step(action)
+            # print(new_state, "\n")
             total_return += reward
             observation = new_state
-            return_history["ddpg"].append(reward)
+            return_history["ddpg"].append(total_return)
         sharpe_ratio = env.sharpe_ratio()
         portfolio_value = env.total_portfolio_value()
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
@@ -130,7 +156,7 @@ else:
             action = [1/(len(assets))] * (len(assets)) + [0]
             new_state, reward, done = env.step(action)
             total_return += reward
-            return_history["uniform_with_rebalance"].append(reward)
+            return_history["uniform_with_rebalance"].append(total_return)
         sharpe_ratio = env.sharpe_ratio()
         portfolio_value = env.total_portfolio_value()
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
@@ -144,12 +170,12 @@ else:
         action = [1/(len(assets))] * (len(assets)) + [0]
         new_state, reward, done = env.step(action)
         total_return += reward
-        return_history["uniform_without_rebalance"].append(reward)
+        return_history["uniform_without_rebalance"].append(total_return)
         while not done:
             action = []
             new_state, reward, done = env.step(action)
             total_return += reward
-            return_history["uniform_without_rebalance"].append(reward)
+            return_history["uniform_without_rebalance"].append(total_return)
         sharpe_ratio = env.sharpe_ratio()
         portfolio_value = env.total_portfolio_value()
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
@@ -201,7 +227,7 @@ else:
             action = list(weights) + [0]
             new_state, reward, done = env.step(action)
             total_return += reward
-            return_history["basic_MPT"].append(reward)
+            return_history["basic_MPT"].append(total_return)
         sharpe_ratio = env.sharpe_ratio()
         print(f"------Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
 
@@ -237,14 +263,14 @@ if (is_training_mode == True):
 else:
     xAxis = range(1, len(return_history[list(return_history.keys())[0]])+1)               # Get the number of times of portfolio rebalance
 
-    plt.title("Cummulative return over time")
+    plt.title("Cumulative return over time")
     plt.xlabel('Time') 
-    plt.ylabel('Cummulative return')
+    plt.ylabel('Cumulative return')
 
     for mode in testing_mode:
         if (testing_mode[mode] == 1):
             plt.plot(xAxis, return_history[mode], label=mode)
 
     plt.legend()
-    plt.savefig("evaluation/test_cummulative_return.png", dpi=300, bbox_inches="tight")
+    plt.savefig("evaluation/test_cumulative_return.png", dpi=300, bbox_inches="tight")
     plt.clf()

@@ -52,8 +52,12 @@ class ActorNetwork(nn.Module):
         x = self.bn3(x)
         x = F.relu(x)
         x = self.mu(x)
+        # if (x.ndim == 1):
+        #     print("actor mu:", x)
         # print("actor mu:", x)
         x = self.sigmoid(x)
+        # if (x.ndim == 1):
+        #     print("actor sigmoid:", x)
         # print("actor sigmoid:", x)
         return x
 

@@ -7,12 +7,12 @@ from .replay_buffer import ReplayBuffer
 from .actor_network_v2 import ActorNetwork
 from .critic_network_v2 import CriticNetwork
 import os
-
+import matplotlib.pyplot as plt 
 
 # alpha and beta are the learning rate for actor and critic network, gamma is the discount factor for future reward
 # tau is the "update rate" of the target networks oarameters (param_target = tau * param_online + (1-tau) * param_target)
 class Agent(object):
-    def __init__(self, alpha, beta, input_dims, tau, gamma, n_actions, max_size=5000, batch_size=64):
+    def __init__(self, alpha, beta, input_dims, tau, gamma, n_actions, max_size=100000, batch_size=64):
         self.gamma = gamma
         self.tau = tau
         self.memory = ReplayBuffer(max_size, input_dims, n_actions)
@@ -30,7 +30,7 @@ class Agent(object):
         self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
                                           lstm_size=100, name="target_critic", chkpt_dir="temp")
 
-        self.noise = OUActionNoise(mu=np.zeros(n_actions))
+        self.noise = OUActionNoise(mu=np.zeros(n_actions), sigma=0.3, theta=0.2)
 
         self.softmax = nn.Softmax(dim=-1)
 
@@ -44,14 +44,13 @@ class Agent(object):
         # observation = observation.clone().detach().requires_grad_(True).to(self.actor.device)
         mu = self.actor.forward(observation).to(self.actor.device)
         # print("mu:", mu)
-
         # Epsilon-greedy exploration using noise
         if (is_training == True):
             epsilon = np.random.rand()
-            if (self.memory.mem_cntr < 1000):
+            if (self.memory.mem_cntr < 3000):
                 if (epsilon < 0.5):
                     mu += T.tensor(self.noise(), dtype=T.float).to(self.actor.device)
-            elif (self.memory.mem_cntr < 2000):
+            elif (self.memory.mem_cntr < 6000):
                 if (epsilon < 0.25):
                     mu += T.tensor(self.noise(), dtype=T.float).to(self.actor.device)
             else:
@@ -71,7 +70,7 @@ class Agent(object):
     def learn(self):
         # Does not begin learning until the replay buffer is filled with at least a batch size
         if self.memory.mem_cntr < self.batch_size:
-            return
+            return 0, 0
         T.backends.cudnn.enabled = False
         states, action, reward, new_states, done = self.memory.sample_buffer(self.batch_size)
         # state, action, reward, new_state, done = self.memory.pop_buffer()
@@ -101,7 +100,7 @@ class Agent(object):
         
         y_arr = []
         for i in range(self.batch_size):
-            y_arr.append(reward[i] + self.gamma * (1 - done[i]) * target_critic_value[i])
+            y_arr.append(reward[i] + self.gamma * done[i] * target_critic_value[i])
         y_arr = T.tensor(y_arr).to(self.critic.device)
         y_arr = y_arr.view(self.batch_size, 1)
 
@@ -109,6 +108,7 @@ class Agent(object):
         self.critic.train()
         self.critic.optimizer.zero_grad()
         critic_loss = F.mse_loss(critic_value, y_arr)
+        cl = critic_loss.cpu().detach().numpy()
         critic_loss.backward()
         self.critic.optimizer.step()
 
@@ -119,6 +119,7 @@ class Agent(object):
         self.actor.train()
         actor_loss = -self.critic.forward(states, mu)
         actor_loss = T.mean(actor_loss)
+        al = actor_loss.cpu().detach().numpy()
         self.critic.train()
         actor_loss.backward()
         self.actor.optimizer.step()
@@ -126,6 +127,8 @@ class Agent(object):
         self.critic.eval()
 
         self.update_network_parameters()
+
+        return al, cl
 
     def update_network_parameters(self, tau=None):
         if tau is None:

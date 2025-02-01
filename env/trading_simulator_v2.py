@@ -136,13 +136,16 @@ class TradingSimulator:
         })
 
         # Initial observation
-        curr_close_price = [x for x in self.close_price.iloc[self.time]]                    # close price of each asset at t
-        prev_close_price = [x for x in self.close_price.iloc[self.time-1]]                  # close price of each asset at t-1
-        log_return = np.log(np.divide(curr_close_price, prev_close_price))                  # natural log of return
-        rsi = [x for x in self.rsi.iloc[self.time]]                                         # rsi of each asset at time t
-        holdings = [asset["num_shares"] for asset in self.portfolio]                        # share and cash holdings 
+        curr_close_price = np.array([x for x in self.close_price.iloc[self.time]])                      # Close price of each asset at t
+        prev_close_price = np.array([x for x in self.close_price.iloc[self.time-1]])                    # Close price of each asset at t-1
+        log_return = np.log(np.divide(curr_close_price, prev_close_price))                              # Natural log of return
+        rsi = [x for x in self.rsi.iloc[self.time]]                                                     # RSI of each asset at time t
+        rsi = rsi / 100
+        holdings = [asset["weighting"] for asset in self.portfolio]                                     # Share and cash weightings 
+        curr_close_price = (curr_close_price - curr_close_price.mean())/(curr_close_price.std())        # Normalize closing price
+        prev_close_price = (prev_close_price - prev_close_price.mean())/(prev_close_price.std())
 
-        initial_input = np.concatenate((curr_close_price, prev_close_price, log_return, rsi, holdings, [self.portfolio_value]))
+        initial_input = np.concatenate((curr_close_price, prev_close_price, log_return, rsi, holdings, [np.log(self.portfolio_value / self.principal)]))
 
         return initial_input
 
@@ -176,26 +179,29 @@ class TradingSimulator:
                 self.portfolio[i]["weighting"] = self.portfolio[i]["value"] / new_value
         
         # Compute the transaction fee based on the number of shares bought/sold
-        # total_tx_cost = 0
-        # for i in range(len(self.portfolio)-1):
-        #     total_tx_cost += abs(self.portfolio[i]["num_shares"] - old_portfolio[i]["num_shares"]) * self.tx_fee
+        total_tx_cost = 0
+        for i in range(len(self.portfolio)-1):
+            total_tx_cost += abs(self.portfolio[i]["num_shares"] - old_portfolio[i]["num_shares"]) * self.tx_fee
 
         self.portfolio_value = new_value
         self.value_history.append(new_value)
         # reward = np.log(self.portfolio_value / old_portfolio_value)
-        # reward = self.portfolio_value - old_portfolio_value - total_tx_cost
-        reward = self.portfolio_value - old_portfolio_value
+        reward = self.portfolio_value - old_portfolio_value - total_tx_cost
+        # reward = self.portfolio_value - old_portfolio_value
 
         # New states
-        curr_close_price = [x for x in self.close_price.iloc[self.time]]                    # close price of each asset at t
-        prev_close_price = [x for x in self.close_price.iloc[self.time-1]]                  # close price of each asset at t-1
-        log_return = np.log(np.divide(curr_close_price, prev_close_price))                  # natural log of return
-        rsi = [x for x in self.rsi.iloc[self.time]]                                         # rsi of each asset at time t
-        holdings = [asset["num_shares"] for asset in self.portfolio]                        # share and cash holdings 
+        curr_close_price = np.array([x for x in self.close_price.iloc[self.time]])                    # Close price of each asset at t
+        prev_close_price = np.array([x for x in self.close_price.iloc[self.time-1]])                  # Close price of each asset at t-1
+        log_return = np.array(np.log(np.divide(curr_close_price, prev_close_price)))                  # Natural log of return
+        rsi = np.array([x for x in self.rsi.iloc[self.time]])                                         # RSI of each asset at time t
+        rsi = rsi/100
+        holdings = np.array([asset["weighting"] for asset in self.portfolio])                         # Share and cash holdings 
+        curr_close_price = (curr_close_price - curr_close_price.mean())/(curr_close_price.std())      # Normalize closing price
+        prev_close_price = (prev_close_price - prev_close_price.mean())/(prev_close_price.std())
 
-        new_state = np.concatenate((curr_close_price, prev_close_price, log_return, rsi, holdings, [self.portfolio_value]))
+        new_state = np.concatenate((curr_close_price, prev_close_price, log_return, rsi, holdings, [np.log(self.portfolio_value / self.principal)]))
 
-        if (self.time == len(self.close_price)-1):           # The episode is ended
+        if (self.time == len(self.close_price)-1):                                                    # Indicate the end of the episode 
             done = 1
 
         return new_state, reward, done
