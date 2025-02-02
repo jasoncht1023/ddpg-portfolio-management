@@ -18,7 +18,7 @@ class ReplayBuffer(object):
         self.new_input_tensor_memory[index] = new_input_tensor
         self.action_memory[index] = action
         self.reward_memory[index] = reward
-        self.terminal_memory[index] = 1 - done  # For bellman equation, to multiply whether or not the episode is over
+        self.terminal_memory[index] = done  # For bellman equation, to multiply whether or not the episode is over
         self.mem_cntr += 1
 
     def sample_buffer(self, batch_size):
