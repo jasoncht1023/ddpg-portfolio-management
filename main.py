@@ -13,10 +13,10 @@ assets = [
     "LNC",
     "RCL",
     "FCX",
-    # "GOLD",
-    # "FDP",
-    # "NEM",
-    # "BMY"
+    "GOLD",
+    "FDP",
+    "NEM",
+    "BMY"
 ]
 rebalance_window = 1
 tx_fee_per_share = 0.005
@@ -74,7 +74,7 @@ if (is_training_mode == True):
             while not done:
                 action = agent.choose_action(observation, is_training_mode)
                 new_state, reward, done = env.step(action)
-                if (i % 5 == 0 or i == 1):
+                if (i % 10 == 0 or i == 1):
                     print("observation:", observation)
                     print("action:", action, "\n")
                 agent.remember(observation, action, reward, new_state, done)

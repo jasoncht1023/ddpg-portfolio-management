@@ -100,7 +100,7 @@ class Agent(object):
         
         y_arr = []
         for i in range(self.batch_size):
-            y_arr.append(reward[i] + self.gamma * done[i] * target_critic_value[i])
+            y_arr.append(reward[i] + self.gamma * (1 - done[i]) * target_critic_value[i])
         y_arr = T.tensor(y_arr).to(self.critic.device)
         y_arr = y_arr.view(self.batch_size, 1)
 
