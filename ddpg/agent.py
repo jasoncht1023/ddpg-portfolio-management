@@ -54,23 +54,22 @@ class Agent(object):
 
         return mu_prime.cpu().detach().numpy()   
 
-    def remember(self, old_input_tensor, action, reward, new_input_tensor, done):
-        self.memory.store_transition(old_input_tensor, action, reward, new_input_tensor, done)
+    def remember(self, state, action, reward, new_state, done):
+        self.memory.store_transition(state, action, reward, new_state, done)
 
     def learn(self):
         # Does not begin learning until the replay buffer is filled with at least a batch size
         if self.memory.mem_cntr < self.batch_size:
             return
         
-        old_input_tensor, action, reward, new_input_tensor, done = self.memory.sample_buffer(self.batch_size)
-        # old_input_tensor, action, reward, new_input_tensor, done = self.memory.pop_buffer()
+        state, action, reward, new_state, done = self.memory.sample_buffer(self.batch_size)
         
         # Change them to numpy arrays and will be used in critic network
         reward = T.tensor(reward, dtype=T.float).to(self.critic.device)
         done = T.tensor(done).to(self.critic.device)
-        new_input_tensor = T.tensor(new_input_tensor, dtype=T.float).to(self.critic.device)
+        new_state = T.tensor(new_state, dtype=T.float).to(self.critic.device)
         action = T.tensor(action, dtype=T.float).to(self.critic.device)
-        old_input_tensor = T.tensor(old_input_tensor, dtype=T.float).to(self.critic.device)
+        state = T.tensor(state, dtype=T.float).to(self.critic.device)
 
         self.target_actor.eval()
         self.target_critic.eval()
@@ -81,14 +80,14 @@ class Agent(object):
         # The targets we want to move towards
         # refactor needed
         target_actions = [
-            self.target_actor.forward(input_tensor) for input_tensor in new_input_tensor
+            self.target_actor.forward(input_tensor) for input_tensor in new_state
         ]
         target_critic_value = [
-            self.target_critic.forward(new_input_tensor[i], action)
+            self.target_critic.forward(new_state[i], action)
             for i, action in enumerate(target_actions)
         ]
         critic_value = [
-            self.critic.forward(old_input_tensor[i], action)
+            self.critic.forward(state[i], action)
             for i, action in enumerate(target_actions)
         ]
 
@@ -112,10 +111,10 @@ class Agent(object):
 
         # Calculation of the loss function for the actor network
         self.actor.optimizer.zero_grad()
-        mu = [self.actor.forward(input_tensor) for input_tensor in old_input_tensor]
+        mu = [self.actor.forward(input_tensor) for input_tensor in state]
         mu = T.stack(mu).to(self.actor.device)
         self.actor.train()
-        actor_loss = [-self.critic.forward(old_input_tensor[i], action) for i, action in enumerate(mu)]
+        actor_loss = [-self.critic.forward(state[i], action) for i, action in enumerate(mu)]
         actor_loss = T.stack(actor_loss).to(self.actor.device)
         actor_loss = T.mean(actor_loss)
         actor_loss.backward()
