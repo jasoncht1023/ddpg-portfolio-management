@@ -4,24 +4,28 @@ import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 import os
-from .actor_network import ActorNetwork
+from .actor_network_v2 import ActorNetwork
 
 # Critic / Q-value Network / Q
 # evaluate state/action pairs
 class CriticNetwork(nn.Module):
-    def __init__(self, learning_rate, n_actions, lstm_size, name, chkpt_dir="tmp/ddpg"):
+    def __init__(self, learning_rate, n_actions, lstm_size, name, chkpt_dir="ddpg/trained_model"):
         super(CriticNetwork, self).__init__()
         layer_dims = (n_actions-1) * 4 + n_actions * 2 + 1 
         self.relu = nn.ReLU()
         self.checkpoint_file = os.path.join(chkpt_dir, name + "_ddpg")
 
-        self.lstm1 = nn.LSTM(layer_dims, lstm_size, dropout=0.35)
-        self.lstm2 = nn.LSTM(lstm_size, lstm_size, dropout=0.35)
+        self.lstm1 = nn.LSTM(layer_dims, lstm_size)
+        self.__init_lstm(self.lstm1)
+
+        self.lstm2 = nn.LSTM(lstm_size, lstm_size)
+        self.__init_lstm(self.lstm2)
+
         self.fc = nn.Linear(lstm_size, layer_dims)
         self.bn = nn.LayerNorm(layer_dims)
         f1 = 1./np.sqrt(self.fc.weight.data.size()[0])
-        # T.nn.init.uniform_(self.fc.weight.data, -f1, f1)
-        # T.nn.init.uniform_(self.fc.bias.data, -f1, f1)
+        nn.init.uniform_(self.fc.weight.data, -f1, f1)
+        nn.init.uniform_(self.fc.bias.data, -f1, f1)
 
         self.q = nn.Linear(layer_dims, 1)
 
@@ -33,19 +37,26 @@ class CriticNetwork(nn.Module):
     def forward(self, state, action):
         x = T.cat((state, action), dim=-1)
         x = x.unsqueeze(0)
-        # print("input shape:", x.shape)
-        output, (h_n, c_n) = self.lstm1(x)
-        # print("lstm1 output shape:", h_n.shape)
-        output, (h_n, c_n) = self.lstm2(h_n)
-        # print("lstm2 output shape:", h_n.shape)
-        x = h_n.squeeze(0)
-        # print("lstm2 output shape after squeeze:", x.shape)
+        output, (final_hidden_state, final_cell_state) = self.lstm1(x)
+        output, (final_hidden_state, final_cell_state) = self.lstm2(final_hidden_state)
+        x = final_hidden_state.squeeze(0)
         x = self.fc(x)
         x = self.bn(x)
         x = self.relu(x)
         state_action_value = self.q(x)
 
         return state_action_value
+    
+    def __init_lstm(self, lstm_layer):
+        for name, param in lstm_layer.named_parameters():
+            if "weight_ih" in name:                                     # Input-to-hidden weights
+                nn.init.xavier_uniform_(param)
+            elif "weight_hh" in name:                                   # Hidden-to-hidden (recurrent) weights
+                nn.init.orthogonal_(param)
+            elif "bias" in name: 
+                param.data.fill_(0)
+                hidden_size = param.shape[0] // 4 
+                param.data[hidden_size:hidden_size * 2].fill_(1)  
 
     def save_checkpoint(self):
         print("... saving checkpoint ...")

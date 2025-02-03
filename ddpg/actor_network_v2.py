@@ -8,7 +8,7 @@ import numpy as np
 # Actor / Policy Network / mu
 # decide what to do based on the current state, outputs action values
 class ActorNetwork(nn.Module):
-    def __init__(self, learning_rate, n_actions, fc1_dims, fc2_dims, fc3_dims, name, chkpt_dir="tmp/ddpg"):
+    def __init__(self, learning_rate, n_actions, fc1_dims, fc2_dims, fc3_dims, name, chkpt_dir="ddpg/trained_model"):
         super(ActorNetwork, self).__init__()
         self.n_actions = n_actions
         self.input_size = (n_actions-1) * 4 + n_actions + 1
@@ -18,20 +18,20 @@ class ActorNetwork(nn.Module):
         self.fc1 = nn.Linear(self.input_size, fc1_dims)
         self.bn1 = nn.LayerNorm(fc1_dims)
         f1 = 1./np.sqrt(self.fc1.weight.data.size()[0])
-        # T.nn.init.uniform_(self.fc1.weight.data, -f1, f1)
-        # T.nn.init.uniform_(self.fc1.bias.data, -f1, f1)
+        nn.init.uniform_(self.fc1.weight.data, -f1, f1)
+        nn.init.uniform_(self.fc1.bias.data, -f1, f1)
 
         self.fc2 = nn.Linear(fc1_dims, fc2_dims)
         self.bn2 = nn.LayerNorm(fc2_dims)
         f2 = 1./np.sqrt(self.fc2.weight.data.size()[0])
-        # T.nn.init.uniform_(self.fc2.weight.data, -f2, f2)
-        # T.nn.init.uniform_(self.fc2.bias.data, -f2, f2)
+        nn.init.uniform_(self.fc2.weight.data, -f2, f2)
+        nn.init.uniform_(self.fc2.bias.data, -f2, f2)
 
         self.fc3 = nn.Linear(fc2_dims, fc3_dims)
         self.bn3 = nn.LayerNorm(fc3_dims)
         f3 = 0.003
-        # T.nn.init.uniform_(self.fc3.weight.data, -f3, f3)
-        # T.nn.init.uniform_(self.fc3.bias.data, -f3, f3)
+        nn.init.uniform_(self.fc3.weight.data, -f3, f3)
+        nn.init.uniform_(self.fc3.bias.data, -f3, f3)
 
         self.mu = nn.Linear(fc3_dims, self.n_actions)
 
