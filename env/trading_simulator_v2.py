@@ -32,14 +32,13 @@ class TradingSimulator:
 
         # Get 27 days data before start date for indicators computation
         returns.reset_index(inplace=True)
-        start_index = returns[returns['Date'] >= start_date].index[0]
-        returns = returns[start_index:].set_index('Date')
+        returns = returns.set_index('Date')
 
         dates = returns.index
         adj_close = self.data.xs("Adj Close", level=1, axis=1)
         adj_close = adj_close.reindex(columns=returns.columns)
 
-        columns = pd.MultiIndex.from_product([assets, ['Adj Close', 'Returns', "RSI",]])
+        columns = pd.MultiIndex.from_product([assets, ['Adj Close', 'Returns', "RSI"]])
         df = pd.DataFrame(index=dates, columns=columns)
         df.columns = columns
         for stock in assets:
@@ -50,10 +49,12 @@ class TradingSimulator:
         for stock in assets:
             df[(stock, "RSI")] = df[(stock, "Returns")].rolling(2).apply(self.__RSI)
 
-        close_data = df[1:len(df) - (len(df)-1)%10]
+        close_data = df[1:len(df)]                                                                          # Drop the first row without the RSI value
         close_data = close_data.reset_index(drop=True)
         to_drop = ["Returns"]
-        close_data = close_data.drop(columns=[(stock, label) for stock in assets for label in to_drop])
+        close_data = close_data.drop(columns=[(stock, label) for stock in assets for label in to_drop])     # Drop unused columns
+        start_index = close_data[close_data['Date'] >= start_date].index[0]                                 # Index of the first trading date in range
+        close_data = close_data[start_index-1:].reset_index(drop=True)                                      # Take an extra day before the first in-range trading date
 
         self.trading_dates = close_data["Date"].dt.date.astype(str).tolist()[1:]
 
@@ -80,7 +81,7 @@ class TradingSimulator:
         avg_gain = returns[returns > 0].mean()
         avg_loss = -returns[returns < 0].mean()
         return 100 * (1 - 1/(1+avg_gain/avg_loss))
-    
+
     def sharpe_ratio(self):     
         def annual_return(yearly_return_history):
             start_value = yearly_return_history.iloc[0] 
