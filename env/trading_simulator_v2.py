@@ -82,21 +82,23 @@ class TradingSimulator:
         return 100 * (1 - 1/(1+avg_gain/avg_loss))
     
     def sharpe_ratio(self):     
-        # Load the risk free rates and convert to 1-window-days rate
+        def annual_return(yearly_return_history):
+            start_value = yearly_return_history.iloc[0] 
+            end_value = yearly_return_history.iloc[-1] 
+            return (end_value - start_value) / start_value * 100 
+        
+        # Load the annual risk free rates
         risk_free_rates = pd.read_csv('env/30y-treasury-rate.csv')
-        risk_free_rates.columns = ["date", "risk_free_rate"]
-        risk_free_rates["risk_free_rate"] = risk_free_rates["risk_free_rate"] * self.rebalance_window / 365
+        risk_free_rates['date'] = pd.to_datetime(risk_free_rates['date']).dt.year
+        risk_free_rates.columns = ["year", "risk_free_rate"]
 
         # Compute the return rates
-        value_pct_change = pd.Series(self.value_history).pct_change() * 100
-        return_rates = pd.DataFrame({"date": self.trading_dates[1:], "return": value_pct_change[1:]})
-        return_rates.columns = ["date", "return_rate"]
+        portfolio_history = pd.DataFrame({"date": pd.to_datetime(self.trading_dates), "value": self.value_history})
+        annual_return_rates = portfolio_history.groupby(portfolio_history['date'].dt.year)['value'].apply(annual_return).reset_index()
+        annual_return_rates.columns = ["year", "return_rate"]
 
         # Combine the risk free rates and return rates
-        df = return_rates.set_index('date').join(risk_free_rates.set_index('date'))
-
-        # Fill missing risk free rates
-        df["risk_free_rate"] = df["risk_free_rate"].interpolate().bfill().ffill()
+        df = annual_return_rates.set_index('year').join(risk_free_rates.set_index('year'))
 
         df["excess_return_rate"] = df["return_rate"] - df["risk_free_rate"]
 

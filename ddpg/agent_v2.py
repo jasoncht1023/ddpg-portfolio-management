@@ -81,9 +81,9 @@ class Agent(object):
         action = T.tensor(action, dtype=T.float).to(self.critic.device)
         states = T.tensor(states, dtype=T.float).to(self.critic.device)
 
-        self.target_actor.eval()
-        self.target_critic.eval()
-        self.critic.eval()
+        # self.target_actor.eval()
+        # self.target_critic.eval()
+        # self.critic.eval()
 
         # Calculate the target actions like the bellman equation in Q-learning
         # The targets we want to move towards

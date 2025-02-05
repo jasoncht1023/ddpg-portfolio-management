@@ -13,19 +13,39 @@ assets = [
     "LNC",
     "RCL",
     "FCX",
-    # "GOLD",
-    # "FDP",
-    # "NEM",
-    # "BMY"
+    "GOLD",
+    "FDP",
+    "NEM",
+    "BMY"
     # "MMM",
-    # "NVDA",
     # "GS",
     # "NKE",
     # "AXP",
     # "HD",
     # "PG",
     # "AMGN",
-    # "HON"
+    # "HON",
+    # "CRM",
+    # "AAPL",
+    # "INTC",
+    # "TRV",
+    # "BA",
+    # "IBM",
+    # "UNH",
+    # "CAT",
+    # "JNJ",
+    # "VZ",
+    # "CVX",
+    # "JPM",
+    # "V",
+    # "CSCO",
+    # "MCD",
+    # "WBA",
+    # "KO",
+    # "MRK",
+    # "WMT",
+    # "MSFT",
+    # "DIS"
 ]
 rebalance_window = 1
 tx_fee_per_share = 0.005
@@ -54,7 +74,7 @@ return_history = {}
 sharpe_ratio_history = {}
 
 # Trading environment initialization
-env = TradingSimulator(principal=principal, assets=assets, start_date="1999-07-01", end_date="2005-07-31", 
+env = TradingSimulator(principal=principal, assets=assets, start_date="2009-01-01", end_date="2016-12-31", 
                        rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 # Default alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
@@ -84,8 +104,8 @@ if (is_training_mode == True):
                 action = agent.choose_action(observation, is_training_mode)
                 new_state, reward, done = env.step(action)
                 # if (i % 10 == 0 or i == 1):
-                #     # print("observation:", observation)
-                #     # print("action:", action, "\n")
+                #     print("observation:", observation)
+                #     print("action:", action, "\n")
                 agent.remember(observation, action, reward, new_state, done)
                 actor_loss, critic_loss = agent.learn() 
                 total_actor_loss += actor_loss
