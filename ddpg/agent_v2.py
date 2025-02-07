@@ -11,7 +11,7 @@ import os
 # alpha and beta are the learning rate for actor and critic network, gamma is the discount factor for future reward
 # tau is the "update rate" of the target networks oarameters (param_target = tau * param_online + (1-tau) * param_target)
 class Agent(object):
-    def __init__(self, alpha, beta, input_dims, tau, gamma, n_actions, max_size=100000, batch_size=64):
+    def __init__(self, alpha, beta, input_dims, tau, gamma, n_actions, max_size=300000, batch_size=64):
         self.gamma = gamma
         self.tau = tau
         self.memory = ReplayBuffer(max_size, input_dims, n_actions)
@@ -67,8 +67,8 @@ class Agent(object):
 
     def learn(self):
         # Does not begin learning until the replay buffer is filled with at least a batch size
-        if self.memory.mem_cntr < self.batch_size:
-            return 0, 0
+        if (self.memory.mem_cntr < self.batch_size):
+            return None, None
         
         T.backends.cudnn.enabled = False
 

@@ -2,21 +2,21 @@ import pandas as pd
 from ddpg.agent_v2 import Agent
 import numpy as np
 from env.trading_simulator_v2 import TradingSimulator
-import matplotlib.pyplot as plt 
 import os
 from scipy.optimize import minimize
+import utils
 
 # Configurations
 # Portfolio settings
 assets = [
-    "APA",
-    "LNC",
-    "RCL",
-    "FCX",
-    "GOLD",
-    "FDP",
-    "NEM",
-    "BMY"
+    # "APA",
+    # "LNC",
+    # "RCL",
+    # "FCX",
+    # "GOLD",
+    # "FDP",
+    # "NEM",
+    # "BMY"
     # "MMM",
     # "GS",
     # "NKE",
@@ -50,7 +50,7 @@ assets = [
 rebalance_window = 1
 tx_fee_per_share = 0.005
 principal = 1000000
-num_epoch = 300
+num_episode = 100
 
 # Either Training mode or Evaluation mode should be run at a time
 is_training_mode = False
@@ -72,34 +72,37 @@ testing_mode = {
 # Evaluation metrics
 return_history = {}
 sharpe_ratio_history = {}
+actor_loss_history = []
+critic_loss_history = []
 
 # Trading environment initialization
-env = TradingSimulator(principal=principal, assets=assets, start_date="2009-01-01", end_date="2016-12-31", 
+env = TradingSimulator(principal=principal, assets=assets, start_date="2019-01-01", end_date="2024-12-31", 
                        rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 # Default alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
-agent = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.09, 
+# agent = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.09, 
+#               input_dims=[len(assets) * 5 + 2], batch_size=128, n_actions=len(assets)+1)
+agent = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.9, 
               input_dims=[len(assets) * 5 + 2], batch_size=128, n_actions=len(assets)+1)
-
-actor_loss_history = []
-critic_loss_history = []
 
 # Training algorithms:
 if (is_training_mode == True):
     if (training_mode["ddpg"] == 1):
         agent.load_models()
         np.random.seed(0)
-
         return_history["ddpg"] = []
         sharpe_ratio_history["ddpg"] = []
+
         print("--------------------DDPG Training--------------------")
-        for i in range(1, num_epoch+1):
+        for i in range(1, num_episode+1):
             print(f"-----------------Episode {i}-----------------")
             observation = env.restart()
             done = 0
             total_return = 0
             total_actor_loss = 0
             total_critic_loss = 0
+            learning_count = 0
+
             while not done:
                 action = agent.choose_action(observation, is_training_mode)
                 new_state, reward, done = env.step(action)
@@ -108,61 +111,43 @@ if (is_training_mode == True):
                 #     print("action:", action, "\n")
                 agent.remember(observation, action, reward, new_state, done)
                 actor_loss, critic_loss = agent.learn() 
-                total_actor_loss += actor_loss
-                total_critic_loss += critic_loss       
+                if (actor_loss != None):
+                    total_actor_loss += actor_loss
+                    total_critic_loss += critic_loss
+                    learning_count += 1       
                 total_return += reward
                 # print("reward:", reward)
                 observation = new_state
+            
+            # Append the metrics after a training episode is ended
             return_history["ddpg"].append(total_return)
             sharpe_ratio = env.sharpe_ratio()
             sharpe_ratio_history["ddpg"].append(sharpe_ratio)
-            actor_loss_history.append(total_actor_loss)
-            critic_loss_history.append(total_critic_loss)
+            actor_loss_history.append(total_actor_loss / learning_count)
+            critic_loss_history.append(total_critic_loss / learning_count)
 
-            if i % 5 == 0:
+            # Save the model and plot training progress graphs every 5 episodes
+            if (i % 5 == 0):
                 agent.save_models()
-                xAxis = range(1, i+1)
-
-                plt.title("Total return over epoch")
-                plt.xlabel('Epoch') 
-                plt.ylabel('Total return')
-                plt.plot(xAxis, return_history["ddpg"], label="ddpg")
-                plt.legend()
-                plt.savefig("evaluation/training_total_return.png", dpi=300, bbox_inches="tight")
-                plt.clf()
-                plt.title("Sharpe Ratio over epoch")
-                plt.xlabel('Epoch') 
-                plt.ylabel('Sharpe Ratio')   
-                plt.plot(xAxis, sharpe_ratio_history["ddpg"], label="ddpg")
-                plt.legend()
-                plt.savefig("evaluation/training_sharpe_ratio.png", dpi=300, bbox_inches="tight")
-                plt.clf()
-
-                plt.title("Actor Loss")
-                plt.xlabel('Progress') 
-                plt.ylabel('Actor Loss')
-                plt.plot(xAxis, actor_loss_history)
-                plt.savefig("evaluation/actor_loss.png", dpi=300, bbox_inches="tight")
-                plt.clf()
-                plt.title("Critic Loss")
-                plt.xlabel('Progress') 
-                plt.ylabel('Critic Loss')   
-                plt.plot(xAxis, critic_loss_history)
-                plt.savefig("evaluation/critic_loss.png", dpi=300, bbox_inches="tight")
-                plt.clf()
+                episode_axis = range(1, i+1)
+                utils.plot_return_over_episodes(episode_axis, return_history["ddpg"], "ddpg")
+                utils.plot_sharpe_ratio_over_episodes(episode_axis, sharpe_ratio_history["ddpg"], "ddpg")
+                utils.plot_mean_actor_loss_over_episodes(episode_axis, actor_loss_history, "ddpg")
+                utils.plot_mean_critic_loss_over_episodes(episode_axis, critic_loss_history, "ddpg")
             print(f"------Episode {i} Summary: Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
-
-        print(f"DDPG average performance: Total Return {np.mean(return_history['ddpg'])}; Sharpe Ratio {np.mean(sharpe_ratio_history['ddpg'])}")
+        print("DDPG training done")
 # Testing algorithms:
 else:
     if (testing_mode["ddpg"] == 1):
         agent.load_models()
         np.random.seed(0)
         return_history["ddpg"] = []
+
         print("--------------------DDPG--------------------")
         observation = env.restart()
         done = 0
         total_return = 0
+
         while not done:
             action = agent.choose_action(observation, is_training_mode)
             # print(action, "\n")
@@ -171,27 +156,33 @@ else:
             total_return += reward
             observation = new_state
             return_history["ddpg"].append(total_return)
+
         sharpe_ratio = env.sharpe_ratio()
         portfolio_value = env.total_portfolio_value()
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
 
     if (testing_mode["uniform_with_rebalance"] == 1):
         return_history["uniform_with_rebalance"] = []
+
         print("--------------------Uniform Weighting with Rebalancing--------------------")
         observation = env.restart()
         done = 0
         total_return = 0
+
         while not done:
             action = [1/(len(assets))] * (len(assets)) + [0]
             new_state, reward, done = env.step(action)
             total_return += reward
             return_history["uniform_with_rebalance"].append(total_return)
+
         sharpe_ratio = env.sharpe_ratio()
         portfolio_value = env.total_portfolio_value()
+
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
 
     if (testing_mode["uniform_without_rebalance"] == 1):
         return_history["uniform_without_rebalance"] = []
+
         print("--------------------Uniform Weighting without Rebalancing--------------------")
         observation = env.restart()
         done = 0
@@ -200,13 +191,16 @@ else:
         new_state, reward, done = env.step(action)
         total_return += reward
         return_history["uniform_without_rebalance"].append(total_return)
+
         while not done:
             action = []
             new_state, reward, done = env.step(action)
             total_return += reward
             return_history["uniform_without_rebalance"].append(total_return)
+
         sharpe_ratio = env.sharpe_ratio()
         portfolio_value = env.total_portfolio_value()
+
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
 
     if (testing_mode["basic_MPT"] == 1):
@@ -265,41 +259,11 @@ if not os.path.isdir("evaluation"):
 
 # Plotting training / testing evaluation graphs depending on the mode
 if (is_training_mode == True):
-    xAxis = range(1, num_epoch+1) 
-
-    plt.title("Total return over epoch")
-    plt.xlabel('Epoch') 
-    plt.ylabel('Total return')
-
-    for mode in training_mode:
-        if (training_mode[mode] == 1):
-            plt.plot(xAxis, return_history[mode], label=mode)
-
-    plt.legend()
-    plt.savefig("evaluation/training_total_return.png", dpi=300, bbox_inches="tight")
-    plt.clf()
-
-    plt.title("Sharpe Ratio over epoch")
-    plt.xlabel('Epoch') 
-    plt.ylabel('Sharpe Ratio')   
-
-    for mode in training_mode:
-        if (training_mode[mode] == 1):
-            plt.plot(xAxis, sharpe_ratio_history[mode], label=mode)
-
-    plt.legend()
-    plt.savefig("evaluation/training_sharpe_ratio.png", dpi=300, bbox_inches="tight")
+    episode_axis = range(1, num_episode+1) 
+    utils.plot_return_over_episodes(episode_axis, return_history["ddpg"], "ddpg")
+    utils.plot_sharpe_ratio_over_episodes(episode_axis, sharpe_ratio_history["ddpg"], "ddpg")
+    utils.plot_mean_actor_loss_over_episodes(episode_axis, actor_loss_history, "ddpg")
+    utils.plot_mean_critic_loss_over_episodes(episode_axis, critic_loss_history, "ddpg")
 else:
-    xAxis = range(1, len(return_history[list(return_history.keys())[0]])+1)               # Get the number of times of portfolio rebalance
-
-    plt.title("Cumulative return over time")
-    plt.xlabel('Time') 
-    plt.ylabel('Cumulative return')
-
-    for mode in testing_mode:
-        if (testing_mode[mode] == 1):
-            plt.plot(xAxis, return_history[mode], label=mode)
-
-    plt.legend()
-    plt.savefig("evaluation/test_cumulative_return.png", dpi=300, bbox_inches="tight")
-    plt.clf()
+    time_axis = range(1, len(return_history[list(return_history.keys())[0]])+1)               # Get the number of times of portfolio rebalance
+    utils.plot_testing_return(time_axis, testing_mode, return_history)
