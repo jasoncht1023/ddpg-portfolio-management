@@ -3,5 +3,4 @@
 test.py
 __pycache__
 /evaluation
-/temp*
-/trained_model
+/trained_model*

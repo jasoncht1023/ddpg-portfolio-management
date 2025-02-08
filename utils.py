@@ -1,0 +1,48 @@
+import matplotlib.pyplot as plt 
+
+def plot_return_over_episodes(episode_axis, return_axis, label):
+    plt.title("Total return over episodes")
+    plt.xlabel('Episode') 
+    plt.ylabel('Total return')
+    plt.plot(episode_axis, return_axis, label=label)
+    plt.legend()
+    plt.savefig("evaluation/training_total_return.png", dpi=300, bbox_inches="tight")
+    plt.clf()
+
+def plot_sharpe_ratio_over_episodes(episode_axis, sharpe_ratio_axis, label):
+    plt.title("Sharpe Ratio over episodes")
+    plt.xlabel('Episode') 
+    plt.ylabel('Sharpe Ratio')   
+    plt.plot(episode_axis, sharpe_ratio_axis, label=label)
+    plt.legend()
+    plt.savefig("evaluation/training_sharpe_ratio.png", dpi=300, bbox_inches="tight")
+    plt.clf()
+
+def plot_mean_actor_loss_over_episodes(episode_axis, actor_loss_axis, label):
+    plt.title("Mean Actor Loss over episodes")
+    plt.xlabel('Episode') 
+    plt.ylabel('Mean Actor Loss')
+    plt.plot(episode_axis, actor_loss_axis, label=label)
+    plt.legend()
+    plt.savefig("evaluation/training_actor_loss.png", dpi=300, bbox_inches="tight")
+    plt.clf()
+
+def plot_mean_critic_loss_over_episodes(episode_axis, critic_loss_axis, label):
+    plt.title("Mean Critic Loss over episodes")
+    plt.xlabel('Episode') 
+    plt.ylabel('Mean Critic Loss')
+    plt.plot(episode_axis, critic_loss_axis, label=label)
+    plt.legend()
+    plt.savefig("evaluation/training_critic_loss.png", dpi=300, bbox_inches="tight")
+    plt.clf()
+
+def plot_testing_return(time_axis, testing_modes, return_history):
+    plt.title("Cumulative return over time")
+    plt.xlabel('Time') 
+    plt.ylabel('Cumulative return')
+    for mode in testing_modes:
+        if (testing_modes[mode] == 1):
+            plt.plot(time_axis, return_history[mode], label=mode)
+    plt.legend()
+    plt.savefig("evaluation/testing_cumulative_return.png", dpi=300, bbox_inches="tight")
+    plt.clf()
