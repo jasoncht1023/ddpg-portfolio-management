@@ -106,6 +106,31 @@ class TradingSimulator:
         # print(df)
         return df["excess_return_rate"].mean() / df["excess_return_rate"].std()
     
+    def omega_ratio(self, target_rate):
+        window_target_rate = (1+target_rate/100)**(1/(252/self.rebalance_window))-1
+        sorted_portfolio_returns = np.sort(pd.Series(self.value_history).pct_change().dropna())
+        cdf = np.arange(1, len(sorted_portfolio_returns) + 1) / len(sorted_portfolio_returns)
+        cdf_value_at_k = np.interp(window_target_rate, sorted_portfolio_returns, cdf)  # Interpolate to find CDF value at k
+
+        area_below_k = cdf_value_at_k  # Area under the CDF for x < k
+        area_above_k = 1 - cdf_value_at_k  # Area above the CDF for x > k
+        omega = area_above_k/area_below_k
+        return omega
+    
+    def maximum_drawdown(self):
+        values = self.value_history
+        drawdowns = []
+        max_so_far = values[0]
+        for i in range(len(values)):
+            if values[i] > max_so_far:
+                drawdown = 0
+                drawdowns.append(drawdown)
+                max_so_far = values[i]
+            else:
+                drawdown = (max_so_far - values[i]) / values[i]
+                drawdowns.append(drawdown)
+        return max(drawdowns)
+    
     def total_portfolio_value(self):
         return self.portfolio_value
 

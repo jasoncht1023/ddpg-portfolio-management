@@ -158,8 +158,11 @@ else:
             return_history["ddpg"].append(total_return)
 
         sharpe_ratio = env.sharpe_ratio()
+        omega_ratio = env.omega_ratio(15)
+        mdd = env.maximum_drawdown()
         portfolio_value = env.total_portfolio_value()
-        print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
+        print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
+        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
 
     if (testing_mode["uniform_with_rebalance"] == 1):
         return_history["uniform_with_rebalance"] = []
@@ -176,9 +179,12 @@ else:
             return_history["uniform_with_rebalance"].append(total_return)
 
         sharpe_ratio = env.sharpe_ratio()
+        omega_ratio = env.omega_ratio(15)
+        mdd = env.maximum_drawdown()
         portfolio_value = env.total_portfolio_value()
 
-        print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
+        print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
+        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
 
     if (testing_mode["uniform_without_rebalance"] == 1):
         return_history["uniform_without_rebalance"] = []
@@ -199,9 +205,12 @@ else:
             return_history["uniform_without_rebalance"].append(total_return)
 
         sharpe_ratio = env.sharpe_ratio()
+        omega_ratio = env.omega_ratio(15)
+        mdd = env.maximum_drawdown()
         portfolio_value = env.total_portfolio_value()
 
-        print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
+        print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
+        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
 
     if (testing_mode["basic_MPT"] == 1):
         return_history["basic_MPT"] = []
@@ -211,11 +220,8 @@ else:
         total_return = 0
 
         risk_free_rates = pd.read_csv('env/30y-treasury-rate.csv')
-        risk_free_rates.columns = ["date", "risk_free_rate"]
-        rebalance_dates_df = pd.DataFrame(env.rebalance_dates, columns=["date"])
-        risk_free_rates = pd.merge(rebalance_dates_df, risk_free_rates, on="date", how="left")
-        risk_free_rates["risk_free_rate"] = risk_free_rates["risk_free_rate"] * env.rebalance_window / 365
-        risk_free_rates["risk_free_rate"] = risk_free_rates["risk_free_rate"].interpolate().bfill().ffill()
+        risk_free_rates['date'] = pd.to_datetime(risk_free_rates['date']).dt.year
+        risk_free_rates.columns = ["year", "risk_free_rate"]
 
         def calculate_tangent_portfolio(exp_r, cov, risk_free_rate):
             num_assets = len(exp_r)
@@ -236,23 +242,28 @@ else:
             return result.x
 
         while not done:
-            # t = max(env.time - 4, 0) # MPT should use more days to calulate the covariance matrix (but fair test with DDPG the range should depends on the window of the matrix for DDPG)
-            t = env.time
-            r = env.close_price[t * rebalance_window : (t + 1) * rebalance_window].pct_change().dropna()
-            exp_r = r.mean()
-            cov = r.cov()
-            d = env.rebalance_dates[t]
-            risk_free_rate = risk_free_rates[risk_free_rates["date"] == d]["risk_free_rate"].values[0]
-            
-            # Calculate tangent portfolio weights
-            weights = calculate_tangent_portfolio(exp_r, cov, risk_free_rate)
-            
-            action = list(weights) + [0]
+            action = []
+            if env.time > 3 and env.time % 1 == 0:
+                t = max(env.time - 5, 0)
+                r = env.close_price[t : env.time].pct_change().dropna()
+                exp_r = r.mean()
+                cov = r.cov()
+                d = pd.to_datetime(env.trading_dates[env.time])
+                risk_free_rate = risk_free_rates[risk_free_rates["year"] == d.year]["risk_free_rate"].values[0]
+                
+                # Calculate tangent portfolio weights
+                weights = calculate_tangent_portfolio(exp_r, cov, risk_free_rate)
+                
+                action = list(weights) + [0]
             new_state, reward, done = env.step(action)
             total_return += reward
             return_history["basic_MPT"].append(total_return)
         sharpe_ratio = env.sharpe_ratio()
-        print(f"------Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
+        omega_ratio = env.omega_ratio(15)
+        mdd = env.maximum_drawdown()
+        portfolio_value = env.total_portfolio_value()
+        print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
+        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
 
 if not os.path.isdir("evaluation"): 
     os.makedirs("evaluation")
