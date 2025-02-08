@@ -16,7 +16,7 @@ assets = [
     # "GOLD",
     # "FDP",
     # "NEM",
-    # "BMY"
+    # "BMY",
     # "MMM",
     # "GS",
     # "NKE",
@@ -46,14 +46,16 @@ assets = [
     # "WMT",
     # "MSFT",
     # "DIS"
+    # "AMD",
+    # "ADDYY",
 ]
 rebalance_window = 1
 tx_fee_per_share = 0.005
 principal = 1000000
-num_episode = 100
+num_episode = 150
 
 # Either Training mode or Evaluation mode should be run at a time
-is_training_mode = False
+is_training_mode = True
 
 # Training settings, 1: mode will be trained; 0: mode will not be run
 training_mode = {
@@ -66,7 +68,7 @@ testing_mode = {
     "ddpg": 1,
     "uniform_with_rebalance": 1,
     "uniform_without_rebalance": 1,
-    "basic_MPT": 0
+    "basic_MPT": 1
 }
 
 # Evaluation metrics
@@ -76,13 +78,11 @@ actor_loss_history = []
 critic_loss_history = []
 
 # Trading environment initialization
-env = TradingSimulator(principal=principal, assets=assets, start_date="2019-01-01", end_date="2024-12-31", 
+env = TradingSimulator(principal=principal, assets=assets, start_date="2009-01-01", end_date="2017-12-31", 
                        rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
-# Default alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
-# agent = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.09, 
-#               input_dims=[len(assets) * 5 + 2], batch_size=128, n_actions=len(assets)+1)
-agent = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.9, 
+# Default: alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
+agent = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.09, 
               input_dims=[len(assets) * 5 + 2], batch_size=128, n_actions=len(assets)+1)
 
 # Training algorithms:

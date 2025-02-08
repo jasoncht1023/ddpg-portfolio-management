@@ -44,5 +44,5 @@ def plot_testing_return(time_axis, testing_modes, return_history):
         if (testing_modes[mode] == 1):
             plt.plot(time_axis, return_history[mode], label=mode)
     plt.legend()
-    plt.savefig("evaluation/test_cumulative_return.png", dpi=300, bbox_inches="tight")
+    plt.savefig("evaluation/testing_cumulative_return.png", dpi=300, bbox_inches="tight")
     plt.clf()
