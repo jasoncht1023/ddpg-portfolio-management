@@ -23,7 +23,7 @@ class CriticNetwork(nn.Module):
 
         self.fc = nn.Linear(lstm_size, layer_dims)
         self.bn = nn.LayerNorm(layer_dims)
-        f1 = 1./np.sqrt(self.fc.weight.data.size()[0])
+        f1 = 0.004           
         nn.init.uniform_(self.fc.weight.data, -f1, f1)
         nn.init.uniform_(self.fc.bias.data, -f1, f1)
 
@@ -50,11 +50,11 @@ class CriticNetwork(nn.Module):
     
     def __init_lstm(self, lstm_layer):
         for name, param in lstm_layer.named_parameters():
-            if "weight_ih" in name:                                     # Input-to-hidden weights
+            if ("weight_ih" in name):                                     # Input-to-hidden weights
                 nn.init.xavier_uniform_(param)
-            elif "weight_hh" in name:                                   # Hidden-to-hidden (recurrent) weights
+            elif ("weight_hh" in name):                                   # Hidden-to-hidden (recurrent) weights
                 nn.init.orthogonal_(param)
-            elif "bias" in name: 
+            elif ("bias" in name): 
                 param.data.fill_(0)
                 hidden_size = param.shape[0] // 4 
                 param.data[hidden_size:hidden_size * 2].fill_(1)  
