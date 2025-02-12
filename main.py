@@ -1,7 +1,7 @@
 import pandas as pd
-from ddpg.agent_v2 import Agent
+from ddpg.agent import Agent
 import numpy as np
-from env.trading_simulator_v2 import TradingSimulator
+from env.trading_simulator import TradingSimulator
 import os
 from scipy.optimize import minimize
 import utils
@@ -9,10 +9,10 @@ import utils
 # Configurations
 # Portfolio settings
 assets = [
-    # "APA",
-    # "LNC",
-    # "RCL",
-    # "FCX",
+    "APA",
+    "LNC",
+    "RCL",
+    "FCX",
     # "GOLD",
     # "FDP",
     # "NEM",
@@ -52,7 +52,7 @@ assets = [
 rebalance_window = 1
 tx_fee_per_share = 0.005
 principal = 1000000
-num_episode = 150
+num_episode = 1000
 
 # Either Training mode or Evaluation mode should be run at a time
 is_training_mode = True
@@ -82,7 +82,7 @@ env = TradingSimulator(principal=principal, assets=assets, start_date="2009-01-0
                        rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 # Default: alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
-agent = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.09, 
+agent = Agent(alpha=0.0001, beta=0.0005, gamma=0.99, tau=0.03, 
               input_dims=[len(assets) * 5 + 2], batch_size=128, n_actions=len(assets)+1)
 
 # Training algorithms:
@@ -106,9 +106,6 @@ if (is_training_mode == True):
             while not done:
                 action = agent.choose_action(observation, is_training_mode)
                 new_state, reward, done = env.step(action)
-                # if (i % 10 == 0 or i == 1):
-                #     print("observation:", observation)
-                #     print("action:", action, "\n")
                 agent.remember(observation, action, reward, new_state, done)
                 actor_loss, critic_loss = agent.learn() 
                 if (actor_loss != None):
@@ -116,7 +113,6 @@ if (is_training_mode == True):
                     total_critic_loss += critic_loss
                     learning_count += 1       
                 total_return += reward
-                # print("reward:", reward)
                 observation = new_state
             
             # Append the metrics after a training episode is ended
@@ -150,19 +146,16 @@ else:
 
         while not done:
             action = agent.choose_action(observation, is_training_mode)
-            # print(action, "\n")
             new_state, reward, done = env.step(action)
-            # print(new_state, "\n")
             total_return += reward
             observation = new_state
             return_history["ddpg"].append(total_return)
 
         sharpe_ratio = env.sharpe_ratio()
-        omega_ratio = env.omega_ratio(15)
         mdd = env.maximum_drawdown()
         portfolio_value = env.total_portfolio_value()
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
-        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
+        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; MDD {mdd:.5f}------\n")
 
     if (testing_mode["uniform_with_rebalance"] == 1):
         return_history["uniform_with_rebalance"] = []
@@ -179,12 +172,11 @@ else:
             return_history["uniform_with_rebalance"].append(total_return)
 
         sharpe_ratio = env.sharpe_ratio()
-        omega_ratio = env.omega_ratio(15)
         mdd = env.maximum_drawdown()
         portfolio_value = env.total_portfolio_value()
 
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
-        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
+        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; MDD {mdd:.5f}------\n")
 
     if (testing_mode["uniform_without_rebalance"] == 1):
         return_history["uniform_without_rebalance"] = []
@@ -205,12 +197,11 @@ else:
             return_history["uniform_without_rebalance"].append(total_return)
 
         sharpe_ratio = env.sharpe_ratio()
-        omega_ratio = env.omega_ratio(15)
         mdd = env.maximum_drawdown()
         portfolio_value = env.total_portfolio_value()
 
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
-        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
+        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; MDD {mdd:.5f}------\n")
 
     if (testing_mode["basic_MPT"] == 1):
         return_history["basic_MPT"] = []
@@ -244,7 +235,7 @@ else:
         while not done:
             action = []
             if env.time > 3 and env.time % 1 == 0:
-                t = max(env.time - 5, 0)
+                t = max(env.time - 10, 0)
                 r = env.close_price[t : env.time].pct_change().dropna()
                 exp_r = r.mean()
                 cov = r.cov()
@@ -259,11 +250,10 @@ else:
             total_return += reward
             return_history["basic_MPT"].append(total_return)
         sharpe_ratio = env.sharpe_ratio()
-        omega_ratio = env.omega_ratio(15)
         mdd = env.maximum_drawdown()
         portfolio_value = env.total_portfolio_value()
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
-        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
+        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; MDD {mdd:.5f}------\n")
 
 if not os.path.isdir("evaluation"): 
     os.makedirs("evaluation")

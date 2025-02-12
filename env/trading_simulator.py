@@ -1,15 +1,13 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
-from collections import defaultdict
-import torch
 import copy
 from datetime import datetime, timedelta
 from env.asset import Asset
 
 class TradingSimulator:
     def __init__(self, principal, assets, start_date, end_date, rebalance_window, tx_fee_per_share):
-        compute_date = datetime.strptime(start_date, '%Y-%m-%d') - timedelta(days=50)
+        compute_date = datetime.strptime(start_date, '%Y-%m-%d') - timedelta(days=10)
         compute_date = compute_date.strftime('%Y-%m-%d')
 
         self.data = yf.download(assets, start=compute_date, end=end_date, group_by="ticker")
@@ -34,14 +32,13 @@ class TradingSimulator:
 
         # Get 27 days data before start date for indicators computation
         returns.reset_index(inplace=True)
-        start_index = returns[returns['Date'] >= start_date].index[0]
-        returns = returns[start_index-27:].set_index('Date')
+        returns = returns.set_index('Date')
 
         dates = returns.index
         adj_close = self.data.xs("Adj Close", level=1, axis=1)
         adj_close = adj_close.reindex(columns=returns.columns)
 
-        columns = pd.MultiIndex.from_product([assets, ["Adj Close", "Returns", "MA", "RSI", "EMA_12", "EMA_26", "MACD"]])
+        columns = pd.MultiIndex.from_product([assets, ['Adj Close', 'Returns', "RSI"]])
         df = pd.DataFrame(index=dates, columns=columns)
         df.columns = columns
         for stock in assets:
@@ -50,55 +47,25 @@ class TradingSimulator:
         df = df.reset_index()
 
         for stock in assets:
-            df[(stock, "MA")] = df[(stock, "Adj Close")].rolling(window=28).apply(self.__MA)
-            df.loc[0, (stock, "EMA_12")] = df.loc[0, (stock, "Adj Close")]
-            df.loc[0, (stock, "EMA_26")] = df.loc[0, (stock, "Adj Close")]
-            for i in range(1, len(df)):
-                df.loc[i, (stock, "EMA_12")] = self.__EMA(12, df.loc[i, (stock, "Adj Close")], df.loc[i - 1, (stock, "EMA_12")])
-                df.loc[i, (stock, "EMA_26")] = self.__EMA(26, df.loc[i, (stock, "Adj Close")], df.loc[i - 1, (stock, "EMA_26")])
-            df[(stock, "MACD")] = df[(stock, "EMA_26")].rolling(window=9).sum() - df[(stock, "EMA_12")].rolling(window=9).sum()
-            df[(stock, "RSI")] = df[(stock, "Returns")].rolling(14).apply(self.__RSI)
+            df[(stock, "RSI")] = df[(stock, "Returns")].rolling(2).apply(self.__RSI)
 
-        close_data = df[27:len(df) - (len(df)-27)%10]
+        close_data = df[1:len(df)]                                                                          # Drop the first row without the RSI value
         close_data = close_data.reset_index(drop=True)
-        to_drop = ["EMA_12", "EMA_26", "Returns"]
-        close_data = close_data.drop(columns=[(stock, label) for stock in assets for label in to_drop])
+        to_drop = ["Returns"]
+        close_data = close_data.drop(columns=[(stock, label) for stock in assets for label in to_drop])     # Drop unused columns
+        start_index = close_data[close_data['Date'] >= start_date].index[0]                                 # Index of the first trading date in range
+        close_data = close_data[start_index-1:].reset_index(drop=True)                                      # Take an extra day before the first in-range trading date
 
-        trading_dates = close_data["Date"].dt.date.astype(str).tolist()
-        self.rebalance_dates = [trading_dates[i] for i in range(len(trading_dates)) if (i+1) % rebalance_window == 0]
+        self.trading_dates = close_data["Date"].dt.date.astype(str).tolist()[1:]
 
         # Collect all the Adjusted Close price data
         adj_close_data = close_data.loc[:, close_data.columns.get_level_values(1) == "Adj Close"]
         adj_close_data.columns = adj_close_data.columns.droplevel(1)
         self.close_price = adj_close_data
 
-        F = defaultdict(dict)  # 4 * n * (m * n)
-        n = len(assets)
-        T = len(close_data) // rebalance_window
-
-        corr = [{} for _ in range(T)]
-        indicators = ["Adj Close", "MA", "RSI", "MACD"]
-
-        for t in range(0, T): # t
-            V = close_data[t*rebalance_window:(t+1)*rebalance_window] # m days closing data
-            lag_t = max(0, t - 5)
-            COR = close_data[lag_t*rebalance_window:(t+1)*rebalance_window]
-
-            for indicator in indicators: # the 4 dimensions
-                corr[t][indicator] = COR.filter([(stock, indicator) for stock in assets], axis=1).corr() # 60 days correlation matrix
-                for stock in assets: # n assets
-                    F[t][(stock, indicator)] = V[(stock, indicator)].values.reshape(rebalance_window,1).dot(corr[t][indicator][(stock, indicator)].values.reshape(1,n)) # m * n tensor for indicator i & stock n
-
-        f = []
-        for t in range(0, T):
-            f.append([])
-            for indicator in indicators:
-                a = []
-                for stock in assets:
-                    a.append(F[t][(stock, indicator)])
-                f[-1].append(a)
-        f = list(map(torch.Tensor, np.array(f)))
-        self.stock_tensors = f
+        rsi_data = close_data.loc[:, close_data.columns.get_level_values(1) == "RSI"]
+        rsi_data.columns = rsi_data.columns.droplevel(1)
+        self.rsi = rsi_data
 
         # Stays constant throughout epochs
         self.principal = principal
@@ -106,21 +73,15 @@ class TradingSimulator:
         self.rebalance_window = rebalance_window
         self.tx_fee = tx_fee_per_share
 
-    def __EMA(self, w, price, last):
-        a = 2 / (1 + w)
-        return a * price + (1 - a) * last
-
-    def __MA(self, prices):
-        return sum(prices) / 28
-
-    def __MACD(self, long, short):
-        return sum(long) - sum(short)
-
     def __RSI(self, returns):
+        if (len(returns[returns > 0]) == 0):
+            return 0
+        if (len(returns[returns < 0]) == 0):
+            return 100
         avg_gain = returns[returns > 0].mean()
         avg_loss = -returns[returns < 0].mean()
-        return 100 * (1 - 1 / (1 + avg_gain / avg_loss))
-    
+        return 100 * (1 - 1/(1+avg_gain/avg_loss))
+
     def sharpe_ratio(self):     
         def annual_return(yearly_return_history):
             start_value = yearly_return_history.iloc[0] 
@@ -142,8 +103,21 @@ class TradingSimulator:
 
         df["excess_return_rate"] = df["return_rate"] - df["risk_free_rate"]
 
-        # print(df)
         return df["excess_return_rate"].mean() / df["excess_return_rate"].std()
+    
+    def maximum_drawdown(self):
+        values = self.value_history
+        drawdowns = []
+        max_so_far = values[0]
+        for i in range(len(values)):
+            if values[i] > max_so_far:
+                drawdown = 0
+                drawdowns.append(drawdown)
+                max_so_far = values[i]
+            else:
+                drawdown = (max_so_far - values[i]) / values[i]
+                drawdowns.append(drawdown)
+        return max(drawdowns)
     
     def total_portfolio_value(self):
         return self.portfolio_value
@@ -152,22 +126,31 @@ class TradingSimulator:
         # Reset the initial portfolio
         self.portfolio = []
         self.portfolio_value = self.principal
-        self.time = 0
+        self.time = 1
 
         # Portfolio value history for return computation used in evaluation
         self.value_history = [self.principal]
 
         # Initializing the stock part of the portfolio
         for stock in self.assets:
-            portfolio_stock = Asset(name=stock, value=0, weighting=0, price=self.close_price.iloc[0][stock], num_share=0)
+            portfolio_stock = Asset(name=stock, value=0, weighting=0, price=self.close_price.iloc[0][stock], num_shares=0)
             self.portfolio.append(portfolio_stock)
         
         # Initially only cash is held in the portfolio
-        cash_asset = Asset(name="cash", value=self.principal, weighting=1, price=1, num_share=self.principal)
+        cash_asset = Asset(name="cash", value=self.principal, weighting=1, price=1, num_shares=self.principal)
         self.portfolio.append(cash_asset)
 
         # Initial observation
-        initial_input = self.stock_tensors[0]
+        curr_close_price = np.array([x for x in self.close_price.iloc[self.time]])                      # Close price of each asset at t
+        prev_close_price = np.array([x for x in self.close_price.iloc[self.time-1]])                    # Close price of each asset at t-1
+        log_return = np.log(np.divide(curr_close_price, prev_close_price))                              # Natural log of return
+        rsi = np.array([x for x in self.rsi.iloc[self.time]])                                           # RSI of each asset at time t
+        rsi = rsi / 100
+        holdings = [asset.get_weighting() for asset in self.portfolio]                                  # Share and cash weightings 
+        curr_close_price = (curr_close_price - curr_close_price.mean())/(curr_close_price.std())        # Normalize closing price
+        prev_close_price = (prev_close_price - prev_close_price.mean())/(prev_close_price.std())
+
+        initial_input = np.concatenate((curr_close_price, prev_close_price, log_return, rsi, holdings, [np.log(self.portfolio_value / self.principal)]))
 
         return initial_input
 
@@ -176,8 +159,6 @@ class TradingSimulator:
         self.time += 1
         old_portfolio_value = self.portfolio_value
         old_portfolio = copy.deepcopy(self.portfolio)
-
-        # print("Time step:", self.time)
 
         # Compute the new portfolio value after 1 rebalance window
         # Price and value of a particular stock change in time = t+1, price of cash is unchanged
@@ -207,13 +188,21 @@ class TradingSimulator:
 
         self.portfolio_value = new_value
         self.value_history.append(new_value)
-        # reward = np.log((self.portfolio_value - old_portfolio_value - total_tx_cost) / old_portfolio_value)
         reward = self.portfolio_value - old_portfolio_value - total_tx_cost
 
-        if (self.time == np.ceil(len(self.close_price) / self.rebalance_window)):           # The episode is ended
+        # New states
+        curr_close_price = np.array([x for x in self.close_price.iloc[self.time]])                    # Close price of each asset at t
+        prev_close_price = np.array([x for x in self.close_price.iloc[self.time-1]])                  # Close price of each asset at t-1
+        log_return = np.array(np.log(np.divide(curr_close_price, prev_close_price)))                  # Natural log of return
+        rsi = np.array([x for x in self.rsi.iloc[self.time]])                                         # RSI of each asset at time t
+        rsi = rsi / 100
+        holdings = np.array([asset.get_weighting() for asset in self.portfolio])                      # Share and cash holdings 
+        curr_close_price = (curr_close_price - curr_close_price.mean())/(curr_close_price.std())      # Normalize closing price
+        prev_close_price = (prev_close_price - prev_close_price.mean())/(prev_close_price.std())
+
+        new_state = np.concatenate((curr_close_price, prev_close_price, log_return, rsi, holdings, [np.log(self.portfolio_value / self.principal)]))
+
+        if (self.time == len(self.close_price)-1):                                                    # Indicate the end of the episode 
             done = 1
-            new_state = np.zeros((4, len(self.assets), self.rebalance_window, len(self.assets)))
-        else:                                                                               # The episode is not ended
-            new_state = self.stock_tensors[self.time]
 
         return new_state, reward, done
