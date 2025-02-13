@@ -13,41 +13,6 @@ assets = [
     "LNC",
     "RCL",
     "FCX",
-    # "GOLD",
-    # "FDP",
-    # "NEM",
-    # "BMY",
-    # "MMM",
-    # "GS",
-    # "NKE",
-    # "AXP",
-    # "HD",
-    # "PG",
-    # "AMGN",
-    # "HON",
-    # "CRM",
-    # "AAPL",
-    # "INTC",
-    # "TRV",
-    # "BA",
-    # "IBM",
-    # "UNH",
-    # "CAT",
-    # "JNJ",
-    # "VZ",
-    # "CVX",
-    # "JPM",
-    # "V",
-    # "CSCO",
-    # "MCD",
-    # "WBA",
-    # "KO",
-    # "MRK",
-    # "WMT",
-    # "MSFT",
-    # "DIS"
-    # "AMD",
-    # "ADDYY",
 ]
 rebalance_window = 1
 tx_fee_per_share = 0.005
@@ -55,7 +20,7 @@ principal = 1000000
 num_episode = 1000
 
 # Either Training mode or Evaluation mode should be run at a time
-is_training_mode = True
+is_training_mode = False
 
 # Training settings, 1: mode will be trained; 0: mode will not be run
 training_mode = {
@@ -78,7 +43,7 @@ actor_loss_history = []
 critic_loss_history = []
 
 # Trading environment initialization
-env = TradingSimulator(principal=principal, assets=assets, start_date="2009-01-01", end_date="2017-12-31", 
+env = TradingSimulator(principal=principal, assets=assets, start_date="2009-01-01", end_date="2024-12-31", 
                        rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 # Default: alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
@@ -235,7 +200,7 @@ else:
         while not done:
             action = []
             if env.time > 3 and env.time % 1 == 0:
-                t = max(env.time - 10, 0)
+                t = max(env.time - 20, 0)
                 r = env.close_price[t : env.time].pct_change().dropna()
                 exp_r = r.mean()
                 cov = r.cov()

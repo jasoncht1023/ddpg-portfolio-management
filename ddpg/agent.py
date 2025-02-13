@@ -47,10 +47,10 @@ class Agent(object):
         # Epsilon-greedy exploration using noise
         if (is_training == True):
             epsilon = np.random.rand()
-            if (self.memory.mem_cntr < 3000):
+            if (self.memory.mem_cntr < 5000):
                 if (epsilon < 0.5):
                     mu += T.tensor(self.noise(), dtype=T.float).to(self.actor.device)
-            elif (self.memory.mem_cntr < 7000):
+            elif (self.memory.mem_cntr < 10000):
                 if (epsilon < 0.25):
                     mu += T.tensor(self.noise(), dtype=T.float).to(self.actor.device)
             else:

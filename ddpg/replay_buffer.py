@@ -33,22 +33,3 @@ class ReplayBuffer(object):
         terminal = self.terminal_memory[batch]
 
         return state, actions, rewards, new_state, terminal
-
-    # Remove and return all the samples in the buffer 
-    def pop_buffer(self):
-        batch = list(range(self.mem_cntr))
-
-        state = self.state_memory[batch]
-        actions = self.action_memory[batch]
-        rewards = self.reward_memory[batch]
-        new_state = self.new_state_memory[batch]
-        terminal = self.terminal_memory[batch]
-
-        self.mem_cntr = 0
-        self.state_memory.fill(0)
-        self.new_state_memory.fill(0)
-        self.action_memory.fill(0)
-        self.reward_memory.fill(0)
-        self.terminal_memory.fill(0)
-
-        return state, actions, rewards, new_state, terminal

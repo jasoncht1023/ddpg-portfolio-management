@@ -11,13 +11,8 @@ class TradingSimulator:
         compute_date = compute_date.strftime('%Y-%m-%d')
 
         self.data = yf.download(assets, start=compute_date, end=end_date, group_by="ticker")
-        if len(assets) == 1:
-            # Create a MultiIndex for the columns
-            multi_index_columns = pd.MultiIndex.from_tuples([(assets[0], col) for col in assets.columns])
-            # Assign the new MultiIndex to the DataFrame
-            self.data.columns = multi_index_columns
-
         returns_list = []
+
         # Loop through each stock ticker and calculate returns
         for stock in assets:
             # Access the 'Adj Close' prices using xs method
@@ -25,12 +20,10 @@ class TradingSimulator:
             # Calculate percentage change
             returns_series = adjusted_close.pct_change()
             # Append the Series to the list
-            returns_list.append(returns_series.rename(stock))  # Rename for clarity
+            returns_list.append(returns_series.rename(stock)) 
 
         # Concatenate all return Series into a single DataFrame
         returns = pd.concat(returns_list, axis=1)
-
-        # Get 27 days data before start date for indicators computation
         returns.reset_index(inplace=True)
         returns = returns.set_index('Date')
 
@@ -147,7 +140,7 @@ class TradingSimulator:
         rsi = np.array([x for x in self.rsi.iloc[self.time]])                                           # RSI of each asset at time t
         rsi = rsi / 100
         holdings = [asset.get_weighting() for asset in self.portfolio]                                  # Share and cash weightings 
-        curr_close_price = (curr_close_price - curr_close_price.mean())/(curr_close_price.std())        # Normalize closing price
+        curr_close_price = (curr_close_price - curr_close_price.mean())/(curr_close_price.std())        # Scale closing price
         prev_close_price = (prev_close_price - prev_close_price.mean())/(prev_close_price.std())
 
         initial_input = np.concatenate((curr_close_price, prev_close_price, log_return, rsi, holdings, [np.log(self.portfolio_value / self.principal)]))
