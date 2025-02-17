@@ -48,10 +48,10 @@ class Agent(object):
         # Epsilon-greedy exploration using noise
         if (is_training == True):
             epsilon = np.random.rand()
-            if (self.memory.mem_cntr < 3000):
+            if (self.memory.mem_cntr < 5000):
                 if (epsilon < 0.5):
                     mu += T.tensor(self.noise(), dtype=T.float).to(self.actor.device)
-            elif (self.memory.mem_cntr < 6000):
+            elif (self.memory.mem_cntr < 10000):
                 if (epsilon < 0.25):
                     mu += T.tensor(self.noise(), dtype=T.float).to(self.actor.device)
             else:
@@ -81,10 +81,6 @@ class Agent(object):
         action = T.tensor(action, dtype=T.float).to(self.critic.device)
         states = T.tensor(states, dtype=T.float).to(self.critic.device)
 
-        # self.target_actor.eval()
-        # self.target_critic.eval()
-        # self.critic.eval()
-
         # Calculate the target actions like the bellman equation in Q-learning
         # The targets we want to move towards
         target_actions = self.target_actor.forward(new_states)
@@ -98,7 +94,6 @@ class Agent(object):
         target = target.view(self.batch_size, 1)
 
         # Calculation of the loss function for the critic network
-        # self.critic.train()
         self.critic.optimizer.zero_grad()
         critic_loss = F.mse_loss(critic_value, target)
         cl = critic_loss.cpu().detach().numpy()
@@ -106,10 +101,8 @@ class Agent(object):
         self.critic.optimizer.step()
 
         # Calculation of the loss function for the actor network
-        # self.critic.eval()
         self.actor.optimizer.zero_grad()
         mu = self.actor.forward(states)
-        # self.actor.train()
         actor_loss = -self.critic.forward(states, mu)
         actor_loss = T.mean(actor_loss)
         al = actor_loss.cpu().detach().numpy()

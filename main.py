@@ -52,7 +52,7 @@ assets = [
 rebalance_window = 1
 tx_fee_per_share = 0.005
 principal = 1000000
-num_episode = 150
+num_episode = 1000
 
 # Either Training mode or Evaluation mode should be run at a time
 is_training_mode = True
@@ -82,7 +82,7 @@ env = TradingSimulator(principal=principal, assets=assets, start_date="2009-01-0
                        rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 # Default: alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
-agent = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.09, 
+agent = Agent(alpha=0.0001, beta=0.0005, gamma=0.99, tau=0.03, 
               input_dims=[len(assets) * 5 + 2], batch_size=128, n_actions=len(assets)+1)
 
 # Training algorithms:

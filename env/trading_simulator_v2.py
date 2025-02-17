@@ -110,10 +110,10 @@ class TradingSimulator:
         window_target_rate = (1+target_rate/100)**(1/(252/self.rebalance_window))-1
         sorted_portfolio_returns = np.sort(pd.Series(self.value_history).pct_change().dropna())
         cdf = np.arange(1, len(sorted_portfolio_returns) + 1) / len(sorted_portfolio_returns)
-        cdf_value_at_k = np.interp(window_target_rate, sorted_portfolio_returns, cdf)  # Interpolate to find CDF value at k
+        cdf_value_at_k = np.interp(window_target_rate, sorted_portfolio_returns, cdf)           # Interpolate to find CDF value at k
 
-        area_below_k = cdf_value_at_k  # Area under the CDF for x < k
-        area_above_k = 1 - cdf_value_at_k  # Area above the CDF for x > k
+        area_below_k = cdf_value_at_k                                                           # Area under the CDF for x < k
+        area_above_k = 1 - cdf_value_at_k                                                       # Area above the CDF for x > k
         omega = area_above_k/area_below_k
         return omega
     
@@ -204,7 +204,6 @@ class TradingSimulator:
         self.value_history.append(new_value)
         # reward = np.log(self.portfolio_value / old_portfolio_value)
         reward = self.portfolio_value - old_portfolio_value - total_tx_cost
-        # reward = self.portfolio_value - old_portfolio_value
 
         # New states
         curr_close_price = np.array([x for x in self.close_price.iloc[self.time]])                    # Close price of each asset at t

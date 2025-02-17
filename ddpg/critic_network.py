@@ -24,14 +24,14 @@ class CriticNetwork(nn.Module):
         # self.fc = nn.Linear(reduce(operator.mul, self.tucker_dimension, 1), 300)
         self.fc1 = nn.Linear(self.input_size, self.fc1_dims)
         self.bn1 = nn.LayerNorm(self.fc1_dims)
-        f1 = 1./np.sqrt(self.fc1.weight.data.size()[0])
+        f1 = 1./np.sqrt(self.fc1.weight.data.size()[1])
         T.nn.init.uniform_(self.fc1.weight.data, -f1, f1)
         T.nn.init.uniform_(self.fc1.bias.data, -f1, f1)
 
 
         self.fc2 = nn.Linear(self.fc1_dims, 300)
         self.bn2 = nn.LayerNorm(300)
-        f2 = 1./np.sqrt(self.fc2.weight.data.size()[0])
+        f2 = 1./np.sqrt(self.fc2.weight.data.size()[1])
         T.nn.init.uniform_(self.fc2.weight.data, -f2, f2)
         T.nn.init.uniform_(self.fc2.bias.data, -f2, f2)
 

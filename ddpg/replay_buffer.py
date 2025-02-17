@@ -33,22 +33,3 @@ class ReplayBuffer(object):
         terminal = self.terminal_memory[batch]
 
         return old_input_tensor, actions, rewards, new_input_tensor, terminal
-
-    # Remove and return all the samples in the buffer 
-    def pop_buffer(self):
-        batch = list(range(self.mem_cntr))
-
-        old_input_tensor = self.old_input_tensor_memory[batch]
-        actions = self.action_memory[batch]
-        rewards = self.reward_memory[batch]
-        new_input_tensor = self.new_input_tensor_memory[batch]
-        terminal = self.terminal_memory[batch]
-
-        self.mem_cntr = 0
-        self.old_input_tensor_memory.fill(0)
-        self.new_input_tensor_memory.fill(0)
-        self.action_memory.fill(0)
-        self.reward_memory.fill(0)
-        self.terminal_memory.fill(0)
-
-        return old_input_tensor, actions, rewards, new_input_tensor, terminal
