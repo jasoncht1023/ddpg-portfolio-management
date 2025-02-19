@@ -10,7 +10,7 @@ class TradingSimulator:
         compute_date = datetime.strptime(start_date, '%Y-%m-%d') - timedelta(days=10)
         compute_date = compute_date.strftime('%Y-%m-%d')
 
-        self.data = yf.download(assets, start=compute_date, end=end_date, group_by="ticker")
+        self.data = yf.download(assets, start=compute_date, end=end_date, group_by="ticker", auto_adjust=True)
         if len(assets) == 1:
             # Create a MultiIndex for the columns
             multi_index_columns = pd.MultiIndex.from_tuples([(assets[0], col) for col in assets.columns])
@@ -20,8 +20,8 @@ class TradingSimulator:
         returns_list = []
         # Loop through each stock ticker and calculate returns
         for stock in assets:
-            # Access the 'Adj Close' prices using xs method
-            adjusted_close = self.data[stock]["Adj Close"]
+            # Access the 'Close' prices using xs method
+            adjusted_close = self.data[stock]["Close"]
             # Calculate percentage change
             returns_series = adjusted_close.pct_change()
             # Append the Series to the list
@@ -35,14 +35,14 @@ class TradingSimulator:
         returns = returns.set_index('Date')
 
         dates = returns.index
-        adj_close = self.data.xs("Adj Close", level=1, axis=1)
+        adj_close = self.data.xs("Close", level=1, axis=1)
         adj_close = adj_close.reindex(columns=returns.columns)
 
-        columns = pd.MultiIndex.from_product([assets, ['Adj Close', 'Returns', "RSI"]])
+        columns = pd.MultiIndex.from_product([assets, ['Close', 'Returns', "RSI"]])
         df = pd.DataFrame(index=dates, columns=columns)
         df.columns = columns
         for stock in assets:
-            df[(stock, "Adj Close")] = adj_close[stock]
+            df[(stock, "Close")] = adj_close[stock]
             df[(stock, "Returns")] = returns[stock]
         df = df.reset_index()
 
@@ -59,7 +59,7 @@ class TradingSimulator:
         self.trading_dates = close_data["Date"].dt.date.astype(str).tolist()[1:]
 
         # Collect all the Adjusted Close price data
-        adj_close_data = close_data.loc[:, close_data.columns.get_level_values(1) == "Adj Close"]
+        adj_close_data = close_data.loc[:, close_data.columns.get_level_values(1) == "Close"]
         adj_close_data.columns = adj_close_data.columns.droplevel(1)
         self.close_price = adj_close_data
 
