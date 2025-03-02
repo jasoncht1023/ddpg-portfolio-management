@@ -13,6 +13,10 @@ assets = [
     "LNC",
     "RCL",
     "FCX",
+    # "GOLD",
+    # "FDP",
+    # "NEM",
+    # "BMY"
 ]
 rebalance_window = 1
 tx_fee_per_share = 0.005
@@ -20,7 +24,7 @@ principal = 1000000
 num_episode = 1000
 
 # Either Training mode or Evaluation mode should be run at a time
-is_training_mode = False
+is_training_mode = True
 
 # Training settings, 1: mode will be trained; 0: mode will not be run
 training_mode = {
@@ -43,7 +47,7 @@ actor_loss_history = []
 critic_loss_history = []
 
 # Trading environment initialization
-env = TradingSimulator(principal=principal, assets=assets, start_date="2009-01-01", end_date="2024-12-31", 
+env = TradingSimulator(principal=principal, assets=assets, start_date="2009-01-01", end_date="2017-12-31", 
                        rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 # Default: alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
@@ -111,16 +115,19 @@ else:
 
         while not done:
             action = agent.choose_action(observation, is_training_mode)
+            # print(action, "\n")
             new_state, reward, done = env.step(action)
+            # print(new_state, "\n")
             total_return += reward
             observation = new_state
             return_history["ddpg"].append(total_return)
 
         sharpe_ratio = env.sharpe_ratio()
+        omega_ratio = env.omega_ratio(15)
         mdd = env.maximum_drawdown()
         portfolio_value = env.total_portfolio_value()
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
-        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; MDD {mdd:.5f}------\n")
+        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
 
     if (testing_mode["uniform_with_rebalance"] == 1):
         return_history["uniform_with_rebalance"] = []
@@ -137,11 +144,12 @@ else:
             return_history["uniform_with_rebalance"].append(total_return)
 
         sharpe_ratio = env.sharpe_ratio()
+        omega_ratio = env.omega_ratio(15)
         mdd = env.maximum_drawdown()
         portfolio_value = env.total_portfolio_value()
 
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
-        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; MDD {mdd:.5f}------\n")
+        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
 
     if (testing_mode["uniform_without_rebalance"] == 1):
         return_history["uniform_without_rebalance"] = []
@@ -162,11 +170,12 @@ else:
             return_history["uniform_without_rebalance"].append(total_return)
 
         sharpe_ratio = env.sharpe_ratio()
+        omega_ratio = env.omega_ratio(15)
         mdd = env.maximum_drawdown()
         portfolio_value = env.total_portfolio_value()
 
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
-        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; MDD {mdd:.5f}------\n")
+        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
 
     if (testing_mode["basic_MPT"] == 1):
         return_history["basic_MPT"] = []
@@ -200,7 +209,7 @@ else:
         while not done:
             action = []
             if env.time > 3 and env.time % 1 == 0:
-                t = max(env.time - 20, 0)
+                t = max(env.time - 5, 0)
                 r = env.close_price[t : env.time].pct_change().dropna()
                 exp_r = r.mean()
                 cov = r.cov()
@@ -215,10 +224,11 @@ else:
             total_return += reward
             return_history["basic_MPT"].append(total_return)
         sharpe_ratio = env.sharpe_ratio()
+        omega_ratio = env.omega_ratio(15)
         mdd = env.maximum_drawdown()
         portfolio_value = env.total_portfolio_value()
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
-        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; MDD {mdd:.5f}------\n")
+        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
 
 if not os.path.isdir("evaluation"): 
     os.makedirs("evaluation")

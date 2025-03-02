@@ -10,32 +10,39 @@ class TradingSimulator:
         compute_date = datetime.strptime(start_date, '%Y-%m-%d') - timedelta(days=10)
         compute_date = compute_date.strftime('%Y-%m-%d')
 
-        self.data = yf.download(assets, start=compute_date, end=end_date, group_by="ticker")
-        returns_list = []
+        self.data = yf.download(assets, start=compute_date, end=end_date, group_by="ticker", auto_adjust=True)
+        if len(assets) == 1:
+            # Create a MultiIndex for the columns
+            multi_index_columns = pd.MultiIndex.from_tuples([(assets[0], col) for col in assets.columns])
+            # Assign the new MultiIndex to the DataFrame
+            self.data.columns = multi_index_columns
 
+        returns_list = []
         # Loop through each stock ticker and calculate returns
         for stock in assets:
-            # Access the 'Adj Close' prices using xs method
-            adjusted_close = self.data[stock]["Adj Close"]
+            # Access the 'Close' prices using xs method
+            adjusted_close = self.data[stock]["Close"]
             # Calculate percentage change
             returns_series = adjusted_close.pct_change()
             # Append the Series to the list
-            returns_list.append(returns_series.rename(stock)) 
+            returns_list.append(returns_series.rename(stock))  # Rename for clarity
 
         # Concatenate all return Series into a single DataFrame
         returns = pd.concat(returns_list, axis=1)
+
+        # Get 27 days data before start date for indicators computation
         returns.reset_index(inplace=True)
         returns = returns.set_index('Date')
 
         dates = returns.index
-        adj_close = self.data.xs("Adj Close", level=1, axis=1)
+        adj_close = self.data.xs("Close", level=1, axis=1)
         adj_close = adj_close.reindex(columns=returns.columns)
 
-        columns = pd.MultiIndex.from_product([assets, ['Adj Close', 'Returns', "RSI"]])
+        columns = pd.MultiIndex.from_product([assets, ['Close', 'Returns', "RSI"]])
         df = pd.DataFrame(index=dates, columns=columns)
         df.columns = columns
         for stock in assets:
-            df[(stock, "Adj Close")] = adj_close[stock]
+            df[(stock, "Close")] = adj_close[stock]
             df[(stock, "Returns")] = returns[stock]
         df = df.reset_index()
 
@@ -52,7 +59,7 @@ class TradingSimulator:
         self.trading_dates = close_data["Date"].dt.date.astype(str).tolist()[1:]
 
         # Collect all the Adjusted Close price data
-        adj_close_data = close_data.loc[:, close_data.columns.get_level_values(1) == "Adj Close"]
+        adj_close_data = close_data.loc[:, close_data.columns.get_level_values(1) == "Close"]
         adj_close_data.columns = adj_close_data.columns.droplevel(1)
         self.close_price = adj_close_data
 
@@ -98,6 +105,17 @@ class TradingSimulator:
 
         return df["excess_return_rate"].mean() / df["excess_return_rate"].std()
     
+    def omega_ratio(self, target_rate):
+        window_target_rate = (1+target_rate/100)**(1/(252/self.rebalance_window))-1
+        sorted_portfolio_returns = np.sort(pd.Series(self.value_history).pct_change().dropna())
+        cdf = np.arange(1, len(sorted_portfolio_returns) + 1) / len(sorted_portfolio_returns)
+        cdf_value_at_k = np.interp(window_target_rate, sorted_portfolio_returns, cdf)           # Interpolate to find CDF value at k
+
+        area_below_k = cdf_value_at_k                                                           # Area under the CDF for x < k
+        area_above_k = 1 - cdf_value_at_k                                                       # Area above the CDF for x > k
+        omega = area_above_k/area_below_k
+        return omega
+    
     def maximum_drawdown(self):
         values = self.value_history
         drawdowns = []
@@ -133,6 +151,8 @@ class TradingSimulator:
         cash_asset = Asset(name="cash", value=self.principal, weighting=1, price=1, num_shares=self.principal)
         self.portfolio.append(cash_asset)
 
+        self.last_day_tx_cost = 0
+
         # Initial observation
         curr_close_price = np.array([x for x in self.close_price.iloc[self.time]])                      # Close price of each asset at t
         prev_close_price = np.array([x for x in self.close_price.iloc[self.time-1]])                    # Close price of each asset at t-1
@@ -140,7 +160,7 @@ class TradingSimulator:
         rsi = np.array([x for x in self.rsi.iloc[self.time]])                                           # RSI of each asset at time t
         rsi = rsi / 100
         holdings = [asset.get_weighting() for asset in self.portfolio]                                  # Share and cash weightings 
-        curr_close_price = (curr_close_price - curr_close_price.mean())/(curr_close_price.std())        # Scale closing price
+        curr_close_price = (curr_close_price - curr_close_price.mean())/(curr_close_price.std())        # Normalize closing price
         prev_close_price = (prev_close_price - prev_close_price.mean())/(prev_close_price.std())
 
         initial_input = np.concatenate((curr_close_price, prev_close_price, log_return, rsi, holdings, [np.log(self.portfolio_value / self.principal)]))
@@ -149,7 +169,6 @@ class TradingSimulator:
 
     def step(self, action):
         done = 0
-        self.time += 1
         old_portfolio_value = self.portfolio_value
         old_portfolio = copy.deepcopy(self.portfolio)
 
@@ -161,6 +180,9 @@ class TradingSimulator:
                 self.portfolio[i].set_price(self.close_price.iloc[self.time][self.assets[i]])
             self.portfolio[i].set_value(self.portfolio[i].get_price() * self.portfolio[i].get_num_shares())
             new_value += self.portfolio[i].get_value()
+
+        # Decucting last day transaction fee from the portfolio value
+        new_value -= self.last_day_tx_cost
         
         # Adjust the weighting of each asset in the portfolio based on the new portfolio value
         # An empty action array means skipping the portfolio rebalance, not applicable in RL algorithms
@@ -181,7 +203,12 @@ class TradingSimulator:
 
         self.portfolio_value = new_value
         self.value_history.append(new_value)
+        # reward = np.log(self.portfolio_value / old_portfolio_value)
         reward = self.portfolio_value - old_portfolio_value - total_tx_cost
+
+        self.last_day_tx_cost = total_tx_cost
+
+        self.time += 1
 
         # New states
         curr_close_price = np.array([x for x in self.close_price.iloc[self.time]])                    # Close price of each asset at t
@@ -199,3 +226,4 @@ class TradingSimulator:
             done = 1
 
         return new_state, reward, done
+           

@@ -1,0 +1,9 @@
+# Trading environment initialization
+env = TradingSimulator(principal=principal, assets=assets, start_date="2018-01-01", end_date="2024-12-31", 
+                       rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
+
+# Default: alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
+agent = Agent(alpha=0.0001, beta=0.0005, gamma=0.99, tau=0.05, 
+              input_dims=[len(assets) * 5 + 2], batch_size=128, n_actions=len(assets)+1)
+
+sigma=0.25, theta=0.2, (3000, 7000), size=500000
