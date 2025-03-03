@@ -1,0 +1,8 @@
+env = TradingSimulator(principal=principal, assets=assets, start_date="2018-01-01", end_date="2024-12-31", 
+                       rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
+
+agent = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.9, 
+              input_dims=[len(assets) * 5 + 2], batch_size=128, n_actions=len(assets)+1)
+
+mem_size = 300000
+self.noise = OUActionNoise(mu=np.zeros(n_actions), sigma=0.3, theta=0.2) (3000, 6000)
