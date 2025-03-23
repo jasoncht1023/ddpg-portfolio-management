@@ -83,7 +83,7 @@ class TradingSimulator:
         return 100 * (1 - 1/(1+avg_gain/avg_loss))
 
     # Compute the rate of return of the whole period
-    def period_return(periood_return_history):
+    def period_return(self, periood_return_history):
         start_value = periood_return_history.iloc[0] 
         end_value = periood_return_history.iloc[-1] 
         return (end_value - start_value) / start_value * 100 

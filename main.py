@@ -164,8 +164,8 @@ else:
         avg_yearly_return = env.avg_yearly_return()
 
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
-        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
-        print(f"------Average yearly return {avg_yearly_return:.5f}------\n")
+        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------")
+        print(f"------Average yearly return {avg_yearly_return:.5f}%------\n")
 
     if (testing_mode["uniform_with_rebalance"] == 1):
         return_history["uniform_with_rebalance"] = []
@@ -188,8 +188,8 @@ else:
         avg_yearly_return = env.avg_yearly_return()
 
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
-        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
-        print(f"------Average yearly return {avg_yearly_return:.5f}------\n")
+        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------")
+        print(f"------Average yearly return {avg_yearly_return:.5f}%------\n")
 
     if (testing_mode["uniform_without_rebalance"] == 1):
         return_history["uniform_without_rebalance"] = []
@@ -216,8 +216,8 @@ else:
         avg_yearly_return = env.avg_yearly_return()
 
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
-        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
-        print(f"------Average yearly return {avg_yearly_return:.5f}------\n")
+        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------")
+        print(f"------Average yearly return {avg_yearly_return:.5f}%------\n")
 
     if (testing_mode["basic_MPT"] == 1):
         return_history["basic_MPT"] = []
@@ -272,8 +272,8 @@ else:
         avg_yearly_return = env.avg_yearly_return()
 
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
-        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
-        print(f"------Average yearly return {avg_yearly_return:.5f}------\n")
+        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------")
+        print(f"------Average yearly return {avg_yearly_return:.5f}%------\n")
 
 if not os.path.isdir("evaluation"): 
     os.makedirs("evaluation")
