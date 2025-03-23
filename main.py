@@ -157,15 +157,7 @@ else:
             observation = new_state
             return_history["ddpg"].append(total_return)
 
-        sharpe_ratio = env.sharpe_ratio()
-        omega_ratio = env.omega_ratio(15)
-        mdd = env.maximum_drawdown()
-        portfolio_value = env.total_portfolio_value()
-        avg_yearly_return = env.avg_yearly_return()
-
-        print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
-        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------")
-        print(f"------Average yearly return {avg_yearly_return:.5f}%------\n")
+        utils.print_eval_results(env, total_return)
 
     if (testing_mode["uniform_with_rebalance"] == 1):
         return_history["uniform_with_rebalance"] = []
@@ -181,15 +173,7 @@ else:
             total_return += reward
             return_history["uniform_with_rebalance"].append(total_return)
 
-        sharpe_ratio = env.sharpe_ratio()
-        omega_ratio = env.omega_ratio(15)
-        mdd = env.maximum_drawdown()
-        portfolio_value = env.total_portfolio_value()
-        avg_yearly_return = env.avg_yearly_return()
-
-        print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
-        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------")
-        print(f"------Average yearly return {avg_yearly_return:.5f}%------\n")
+        utils.print_eval_results(env, total_return)
 
     if (testing_mode["uniform_without_rebalance"] == 1):
         return_history["uniform_without_rebalance"] = []
@@ -209,15 +193,7 @@ else:
             total_return += reward
             return_history["uniform_without_rebalance"].append(total_return)
 
-        sharpe_ratio = env.sharpe_ratio()
-        omega_ratio = env.omega_ratio(15)
-        mdd = env.maximum_drawdown()
-        portfolio_value = env.total_portfolio_value()
-        avg_yearly_return = env.avg_yearly_return()
-
-        print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
-        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------")
-        print(f"------Average yearly return {avg_yearly_return:.5f}%------\n")
+        utils.print_eval_results(env, total_return)
 
     if (testing_mode["basic_MPT"] == 1):
         return_history["basic_MPT"] = []
@@ -265,15 +241,8 @@ else:
             new_state, reward, done = env.step(action)
             total_return += reward
             return_history["basic_MPT"].append(total_return)
-        sharpe_ratio = env.sharpe_ratio()
-        omega_ratio = env.omega_ratio(15)
-        mdd = env.maximum_drawdown()
-        portfolio_value = env.total_portfolio_value()
-        avg_yearly_return = env.avg_yearly_return()
-
-        print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
-        print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------")
-        print(f"------Average yearly return {avg_yearly_return:.5f}%------\n")
+        
+        utils.print_eval_results(env, total_return)
 
 if not os.path.isdir("evaluation"): 
     os.makedirs("evaluation")
