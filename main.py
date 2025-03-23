@@ -55,7 +55,7 @@ principal = 1000000
 num_episode = 1000
 
 # Either Training mode or Evaluation mode should be run at a time
-is_training_mode = True
+is_training_mode = False
 
 # Training settings, 1: mode will be trained; 0: mode will not be run
 training_mode = {
@@ -78,7 +78,7 @@ actor_loss_history = []
 critic_loss_history = []
 
 # Trading environment initialization
-env = TradingSimulator(principal=principal, assets=assets, start_date="2009-01-01", end_date="2017-12-31", 
+env = TradingSimulator(principal=principal, assets=assets, start_date="2018-01-01", end_date="2024-12-31", 
                        rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 # Default: alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
@@ -161,8 +161,11 @@ else:
         omega_ratio = env.omega_ratio(15)
         mdd = env.maximum_drawdown()
         portfolio_value = env.total_portfolio_value()
+        avg_yearly_return = env.avg_yearly_return()
+
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
         print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
+        print(f"------Average yearly return {avg_yearly_return:.5f}------\n")
 
     if (testing_mode["uniform_with_rebalance"] == 1):
         return_history["uniform_with_rebalance"] = []
@@ -182,9 +185,11 @@ else:
         omega_ratio = env.omega_ratio(15)
         mdd = env.maximum_drawdown()
         portfolio_value = env.total_portfolio_value()
+        avg_yearly_return = env.avg_yearly_return()
 
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
         print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
+        print(f"------Average yearly return {avg_yearly_return:.5f}------\n")
 
     if (testing_mode["uniform_without_rebalance"] == 1):
         return_history["uniform_without_rebalance"] = []
@@ -208,9 +213,11 @@ else:
         omega_ratio = env.omega_ratio(15)
         mdd = env.maximum_drawdown()
         portfolio_value = env.total_portfolio_value()
+        avg_yearly_return = env.avg_yearly_return()
 
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
         print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
+        print(f"------Average yearly return {avg_yearly_return:.5f}------\n")
 
     if (testing_mode["basic_MPT"] == 1):
         return_history["basic_MPT"] = []
@@ -262,8 +269,11 @@ else:
         omega_ratio = env.omega_ratio(15)
         mdd = env.maximum_drawdown()
         portfolio_value = env.total_portfolio_value()
+        avg_yearly_return = env.avg_yearly_return()
+
         print(f"------Portfolio Value {portfolio_value:.2f}; Total Return {total_return:.2f};------")
         print(f"------Sharpe Ratio {sharpe_ratio:.5f}; Omega Ratio {omega_ratio:.5f} MDD {mdd:.5f}------\n")
+        print(f"------Average yearly return {avg_yearly_return:.5f}------\n")
 
 if not os.path.isdir("evaluation"): 
     os.makedirs("evaluation")

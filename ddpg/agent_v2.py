@@ -5,8 +5,8 @@ import numpy as np
 from .ou_action_noise import OUActionNoise
 from .replay_buffer import ReplayBuffer
 from .actor_network_v2 import ActorNetwork
-# from .critic_network_v2 import CriticNetwork
-from .critic_network_v3 import CriticNetwork
+from .critic_network_v2 import CriticNetwork
+# from .critic_network_v3 import CriticNetwork
 import os
 
 # alpha and beta are the learning rate for actor and critic network, gamma is the discount factor for future reward

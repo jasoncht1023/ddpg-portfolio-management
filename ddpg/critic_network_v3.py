@@ -12,13 +12,12 @@ from .actor_network import ActorNetwork
 class CriticNetwork(nn.Module):
     def __init__(self, learning_rate, n_actions, fc1_dims, fc2_dims, fc3_dims, name, chkpt_dir="ddpg/trained_model"):
         super(CriticNetwork, self).__init__()
-        self.input_size = (n_actions-1) * 4 + n_actions + 1
-        self.fc1_dims = fc1_dims
+        input_size = (n_actions-1) * 4 + n_actions + 1
         self.relu = nn.ReLU()
         self.checkpoint_file = os.path.join(chkpt_dir, name + "_ddpg")
 
         # for state_value
-        self.fc1 = nn.Linear(self.input_size, fc1_dims)
+        self.fc1 = nn.Linear(input_size, fc1_dims)
         self.bn1 = nn.LayerNorm(fc1_dims)
         f1 = 1./np.sqrt(self.fc1.weight.data.size()[1])                 # Square root of the fan-in
         nn.init.uniform_(self.fc1.weight.data, -f1, f1)
@@ -38,7 +37,9 @@ class CriticNetwork(nn.Module):
 
         self.action_value = nn.Linear(n_actions, fc3_dims)
 
-        self.q = nn.Linear(fc3_dims, 1)
+        self.bn4 = nn.LayerNorm(fc3_dims + n_actions)
+
+        self.q = nn.Linear(fc3_dims + n_actions, 1)
         f4 = 0.0003
         T.nn.init.uniform_(self.q.weight.data, -f4, f4)
         T.nn.init.uniform_(self.q.bias.data, -f4, f4)
@@ -57,12 +58,13 @@ class CriticNetwork(nn.Module):
         state_value = self.bn2(state_value)
         state_value = F.relu(state_value)
         state_value = self.fc3(state_value)
+        state_value = self.bn3(state_value)
 
-        action_value = self.action_value(action)
-        action_value = F.relu(action_value)
+        # action_value = self.action_value(action)
+        # action_value = F.relu(action_value)
 
-        state_action_value = T.add(state_value, action_value)
-        state_action_value = self.bn3(state_value)
+        state_action_vaule = T.cat((state_value, action), dim=-1)
+        state_action_value = self.bn4(state_action_vaule)
         state_action_value = F.relu(state_action_value)                 # might need to change, relu then add vs add then relu
         state_action_value = self.q(state_action_value)
 

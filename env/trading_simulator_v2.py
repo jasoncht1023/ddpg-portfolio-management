@@ -82,12 +82,13 @@ class TradingSimulator:
         avg_loss = -returns[returns < 0].mean()
         return 100 * (1 - 1/(1+avg_gain/avg_loss))
 
-    def sharpe_ratio(self):     
-        def annual_return(yearly_return_history):
-            start_value = yearly_return_history.iloc[0] 
-            end_value = yearly_return_history.iloc[-1] 
-            return (end_value - start_value) / start_value * 100 
-        
+    # Compute the rate of return of the whole period
+    def period_return(periood_return_history):
+        start_value = periood_return_history.iloc[0] 
+        end_value = periood_return_history.iloc[-1] 
+        return (end_value - start_value) / start_value * 100 
+    
+    def sharpe_ratio(self):      
         # Load the annual risk free rates
         risk_free_rates = pd.read_csv('env/30y-treasury-rate.csv')
         risk_free_rates['date'] = pd.to_datetime(risk_free_rates['date']).dt.year
@@ -95,7 +96,7 @@ class TradingSimulator:
 
         # Compute the return rates
         portfolio_history = pd.DataFrame({"date": pd.to_datetime(self.trading_dates), "value": self.value_history})
-        annual_return_rates = portfolio_history.groupby(portfolio_history['date'].dt.year)['value'].apply(annual_return).reset_index()
+        annual_return_rates = portfolio_history.groupby(portfolio_history['date'].dt.year)['value'].apply(self.period_return).reset_index()
         annual_return_rates.columns = ["year", "return_rate"]
 
         # Combine the risk free rates and return rates
@@ -130,6 +131,12 @@ class TradingSimulator:
                 drawdown = (max_so_far - values[i]) / values[i]
                 drawdowns.append(drawdown)
         return max(drawdowns)
+    
+    def avg_yearly_return(self):
+        portfolio_history = pd.DataFrame({"date": pd.to_datetime(self.trading_dates), "value": self.value_history})
+        annual_return_rates = portfolio_history.groupby(portfolio_history['date'].dt.year)['value'].apply(self.period_return).reset_index()
+        annual_return_rates.columns = ["year", "return_rate"]
+        return annual_return_rates["return_rate"].mean()
     
     def total_portfolio_value(self):
         return self.portfolio_value
