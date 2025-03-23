@@ -22,20 +22,20 @@ class Agent(object):
         self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
                                   fc1_dims=256, fc2_dims=128, fc3_dims=64, name="actor", chkpt_dir=self.model_dir)
 
-        # self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
-        #                             lstm_size=100, name="critic", chkpt_dir=self.model_dir)
-
         self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
-                                    fc1_dims=256, fc2_dims=128, fc3_dims=64, name="critic", chkpt_dir=self.model_dir)
+                                    lstm_size=100, name="critic", chkpt_dir=self.model_dir)
+
+        # self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
+        #                             fc1_dims=256, fc2_dims=128, fc3_dims=64, name="critic", chkpt_dir=self.model_dir)
 
         self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
                                          fc1_dims=256, fc2_dims=128, fc3_dims=64, name="target_actor", chkpt_dir=self.model_dir)
 
-        # self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
-        #                                    lstm_size=100, name="target_critic", chkpt_dir=self.model_dir)
-        
         self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
-                                           fc1_dims=256, fc2_dims=128, fc3_dims=64, name="target_critic", chkpt_dir=self.model_dir)
+                                           lstm_size=100, name="target_critic", chkpt_dir=self.model_dir)
+        
+        # self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
+        #                                    fc1_dims=256, fc2_dims=128, fc3_dims=64, name="target_critic", chkpt_dir=self.model_dir)
 
         self.noise = OUActionNoise(mu=np.zeros(n_actions), sigma=0.3, theta=0.2)
 
