@@ -6,16 +6,16 @@ class ReplayBuffer(object):
     def __init__(self, max_size, input_shape, n_actions):
         self.mem_size = max_size
         self.mem_cntr = 0
-        self.old_input_tensor_memory = np.zeros((self.mem_size, *input_shape))
-        self.new_input_tensor_memory = np.zeros((self.mem_size, *input_shape))
+        self.state = np.zeros((self.mem_size, *input_shape))
+        self.new_state = np.zeros((self.mem_size, *input_shape))
         self.action_memory = np.zeros((self.mem_size, n_actions))
         self.reward_memory = np.zeros(self.mem_size)
         self.terminal_memory = np.zeros(self.mem_size, dtype=np.float32)
 
-    def store_transition(self, old_input_tensor, action, reward, new_input_tensor, done):
+    def store_transition(self, state, action, reward, new_state, done):
         index = self.mem_cntr % self.mem_size
-        self.old_input_tensor_memory[index] = old_input_tensor
-        self.new_input_tensor_memory[index] = new_input_tensor
+        self.state[index] = state
+        self.new_state[index] = new_state
         self.action_memory[index] = action
         self.reward_memory[index] = reward
         self.terminal_memory[index] = done  # For bellman equation, to multiply whether or not the episode is over
@@ -26,10 +26,10 @@ class ReplayBuffer(object):
 
         batch = np.random.choice(max_mem, batch_size)
 
-        old_input_tensor = self.old_input_tensor_memory[batch]
+        state = self.state[batch]
         actions = self.action_memory[batch]
         rewards = self.reward_memory[batch]
-        new_input_tensor = self.new_input_tensor_memory[batch]
+        new_state = self.new_state[batch]
         terminal = self.terminal_memory[batch]
 
-        return old_input_tensor, actions, rewards, new_input_tensor, terminal
+        return state, actions, rewards, new_state, terminal
