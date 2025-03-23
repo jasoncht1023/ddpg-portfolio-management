@@ -36,6 +36,7 @@ class ActorNetwork(nn.Module):
         self.mu = nn.Linear(fc3_dims, self.n_actions)
 
         self.sigmoid = nn.Sigmoid()
+        self.softmax = nn.Softmax(dim=-1)
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
 
         # self.device = T.device("cuda:0" if T.cuda.is_available() else "cpu")
@@ -56,7 +57,8 @@ class ActorNetwork(nn.Module):
         # if (x.ndim == 1):
         #     print("actor mu:", x)
         # print("actor mu:", x)
-        x = self.sigmoid(x)
+        # x = self.sigmoid(x)
+        x = self.softmax(x)
         # if (x.ndim == 1):
         #     print("actor sigmoid:", x)
         # print("actor sigmoid:", x)

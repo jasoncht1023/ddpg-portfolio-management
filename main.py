@@ -9,10 +9,10 @@ import utils
 # Configurations
 # Portfolio settings
 assets = [
-    # "APA",
-    # "LNC",
-    # "RCL",
-    # "FCX",
+    "APA",
+    "LNC",
+    "RCL",
+    "FCX",
     # "GOLD",
     # "FDP",
     # "NEM",
