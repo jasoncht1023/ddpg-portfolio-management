@@ -8,12 +8,12 @@ import numpy as np
 # Actor / Policy Network / mu
 # decide what to do based on the current state, outputs action values
 class ActorNetwork(nn.Module):
-    def __init__(self, learning_rate, n_actions, fc1_dims, fc2_dims, fc3_dims, name, chkpt_dir="ddpg/trained_model"):
+    def __init__(self, learning_rate, n_actions, fc1_dims, fc2_dims, fc3_dims, name):
         super(ActorNetwork, self).__init__()
+        self.name = name
         self.n_actions = n_actions
         self.input_size = (n_actions-1) * 4 + n_actions + 1
         self.relu = nn.ReLU()
-        self.checkpoint_file = os.path.join(chkpt_dir, name + "_ddpg")
 
         self.fc1 = nn.Linear(self.input_size, fc1_dims)
         self.bn1 = nn.LayerNorm(fc1_dims)
@@ -64,14 +64,16 @@ class ActorNetwork(nn.Module):
         # print("actor sigmoid:", x)
         return x
 
-    def save_checkpoint(self):
+    def save_checkpoint(self, saving_dir):
         print("... saving checkpoint ...")
-        T.save(self.state_dict(), self.checkpoint_file)
+        checkpoint_file = os.path.join(saving_dir, self.name + "_ddpg")
+        T.save(self.state_dict(), checkpoint_file)
 
-    def load_checkpoint(self):
-        if os.path.exists(self.checkpoint_file): 
+    def load_checkpoint(self, loading_dir):
+        checkpoint_file = os.path.join(loading_dir, self.name + "_ddpg")
+        if os.path.exists(checkpoint_file): 
             print("... loading checkpoint ...")
-            self.load_state_dict(T.load(self.checkpoint_file))
+            self.load_state_dict(T.load(checkpoint_file))
 
 # for testing only
 if __name__ == "__main__":

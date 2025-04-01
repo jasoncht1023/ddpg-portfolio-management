@@ -4,7 +4,8 @@ import torch.nn as nn
 import numpy as np
 from .ou_action_noise import OUActionNoise
 from .replay_buffer import ReplayBuffer
-from .actor_network_v2 import ActorNetwork
+# from .actor_network_v2 import ActorNetwork
+from .actor_network_lstm import ActorNetwork
 from .critic_network_v2 import CriticNetwork
 # from .critic_network_v3 import CriticNetwork
 import os
@@ -17,22 +18,23 @@ class Agent(object):
         self.tau = tau
         self.memory = ReplayBuffer(max_size, input_dims, n_actions)
         self.batch_size = batch_size
-        self.model_dir = "trained_model"
 
-        self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
-                                  fc1_dims=256, fc2_dims=128, fc3_dims=64, name="actor", chkpt_dir=self.model_dir)
+        # self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
+        #                           fc1_dims=256, fc2_dims=128, fc3_dims=64, name="actor", chkpt_dir=self.model_dir)
 
-        self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
-                                    lstm_size=100, name="critic", chkpt_dir=self.model_dir)
+        self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, lstm_size=100, name="actor")
+
+        self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, lstm_size=100, name="critic")
 
         # self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
         #                             fc1_dims=256, fc2_dims=128, fc3_dims=64, name="critic", chkpt_dir=self.model_dir)
 
-        self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
-                                         fc1_dims=256, fc2_dims=128, fc3_dims=64, name="target_actor", chkpt_dir=self.model_dir)
+        # self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
+        #                                  fc1_dims=256, fc2_dims=128, fc3_dims=64, name="target_actor", chkpt_dir=self.model_dir)
 
-        self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
-                                           lstm_size=100, name="target_critic", chkpt_dir=self.model_dir)
+        self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, lstm_size=100, name="target_actor")
+
+        self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, lstm_size=100, name="target_critic")
         
         # self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
         #                                    fc1_dims=256, fc2_dims=128, fc3_dims=64, name="target_critic", chkpt_dir=self.model_dir)
@@ -102,7 +104,8 @@ class Agent(object):
 
         # Calculation of the loss function for the critic network
         self.critic.optimizer.zero_grad()
-        critic_loss = F.mse_loss(critic_value, target)
+        # critic_loss = F.mse_loss(critic_value, target)
+        critic_loss = F.huber_loss(critic_value, target, delta=1)
         cl = critic_loss.cpu().detach().numpy()
         critic_loss.backward()
         self.critic.optimizer.step()
@@ -142,17 +145,17 @@ class Agent(object):
 
         self.target_actor.load_state_dict(actor_state_dict)
 
-    def save_models(self):
-        if not os.path.isdir(self.model_dir): 
-            os.makedirs(self.model_dir)
+    def save_models(self, saving_dir):
+        if not os.path.isdir(saving_dir): 
+            os.makedirs(saving_dir)
 
-        self.actor.save_checkpoint()
-        self.target_actor.save_checkpoint()
-        self.critic.save_checkpoint()
-        self.target_critic.save_checkpoint()
+        self.actor.save_checkpoint(saving_dir)
+        self.target_actor.save_checkpoint(saving_dir)
+        self.critic.save_checkpoint(saving_dir)
+        self.target_critic.save_checkpoint(saving_dir)
 
-    def load_models(self):
-        self.actor.load_checkpoint()
-        self.target_actor.load_checkpoint()
-        self.critic.load_checkpoint()
-        self.target_critic.load_checkpoint()
+    def load_models(self, loading_dir):
+        self.actor.load_checkpoint(loading_dir)
+        self.target_actor.load_checkpoint(loading_dir)
+        self.critic.load_checkpoint(loading_dir)
+        self.target_critic.load_checkpoint(loading_dir)

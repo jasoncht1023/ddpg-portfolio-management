@@ -10,11 +10,11 @@ from .actor_network import ActorNetwork
 # Critic / Q-value Network / Q
 # evaluate state/action pairs
 class CriticNetwork(nn.Module):
-    def __init__(self, learning_rate, n_actions, fc1_dims, fc2_dims, fc3_dims, name, chkpt_dir="ddpg/trained_model"):
+    def __init__(self, learning_rate, n_actions, fc1_dims, fc2_dims, fc3_dims, name):
         super(CriticNetwork, self).__init__()
+        self.name = name
         input_size = (n_actions-1) * 4 + n_actions + 1
         self.relu = nn.ReLU()
-        self.checkpoint_file = os.path.join(chkpt_dir, name + "_ddpg")
 
         # for state_value
         self.fc1 = nn.Linear(input_size, fc1_dims)
@@ -70,14 +70,16 @@ class CriticNetwork(nn.Module):
 
         return state_action_value
 
-    def save_checkpoint(self):
+    def save_checkpoint(self, saving_dir):
         print("... saving checkpoint ...")
-        T.save(self.state_dict(), self.checkpoint_file)
+        checkpoint_file = os.path.join(saving_dir, self.name + "_ddpg")
+        T.save(self.state_dict(), checkpoint_file)
 
-    def load_checkpoint(self):
-        if os.path.exists(self.checkpoint_file): 
+    def load_checkpoint(self, loading_dir):
+        checkpoint_file = os.path.join(loading_dir, self.name + "_ddpg")
+        if os.path.exists(checkpoint_file): 
             print("... loading checkpoint ...")
-            self.load_state_dict(T.load(self.checkpoint_file))    
+            self.load_state_dict(T.load(checkpoint_file)) 
 
 # for testing only
 if __name__ == "__main__":

@@ -55,7 +55,7 @@ principal = 1000000
 num_episode = 1000
 
 # Either Training mode or Evaluation mode should be run at a time
-is_training_mode = False
+is_training_mode = True
 
 # Training settings, 1: mode will be trained; 0: mode will not be run
 training_mode = {
@@ -78,7 +78,7 @@ actor_loss_history = []
 critic_loss_history = []
 
 # Trading environment initialization
-env = TradingSimulator(principal=principal, assets=assets, start_date="2018-01-01", end_date="2024-12-31", 
+env = TradingSimulator(principal=principal, assets=assets, start_date="2009-01-01", end_date="2017-12-31", 
                        rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 # Default: alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
@@ -88,7 +88,7 @@ agent = Agent(alpha=0.0001, beta=0.0005, gamma=0.99, tau=0.03,
 # Training algorithms:
 if (is_training_mode == True):
     if (training_mode["ddpg"] == 1):
-        agent.load_models()
+        agent.load_models("trained_model")
         np.random.seed(0)
         return_history["ddpg"] = []
         sharpe_ratio_history["ddpg"] = []
@@ -128,18 +128,27 @@ if (is_training_mode == True):
 
             # Save the model and plot training progress graphs every 5 episodes
             if (i % 5 == 0):
-                agent.save_models()
+                agent.save_models("trained_model")                
                 episode_axis = range(1, i+1)
                 utils.plot_return_over_episodes(episode_axis, return_history["ddpg"], "ddpg")
                 utils.plot_sharpe_ratio_over_episodes(episode_axis, sharpe_ratio_history["ddpg"], "ddpg")
                 utils.plot_mean_actor_loss_over_episodes(episode_axis, actor_loss_history, "ddpg")
                 utils.plot_mean_critic_loss_over_episodes(episode_axis, critic_loss_history, "ddpg")
             print(f"------Episode {i} Summary: Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
+
+            if (i == 100):
+                agent.save_models("trained_model_100") 
+            elif (i == 200):
+                agent.save_models("trained_model_200")    
+            elif (i == 300):
+                agent.save_models("trained_model_300")    
+            elif (i == 500):      
+                agent.save_models("trained_model_500") 
         print("DDPG training done")
 # Testing algorithms:
 else:
     if (testing_mode["ddpg"] == 1):
-        agent.load_models()
+        agent.load_models("trained_model")
         np.random.seed(0)
         return_history["ddpg"] = []
 
