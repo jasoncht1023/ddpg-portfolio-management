@@ -5,8 +5,10 @@ import numpy as np
 from .ou_action_noise import OUActionNoise
 from .replay_buffer import ReplayBuffer
 # from .actor_network_v2 import ActorNetwork
-from .actor_network_lstm import ActorNetwork
-from .critic_network_v2 import CriticNetwork
+# from .actor_network_lstm import ActorNetwork
+from .actor_network_lstm_with_dropout import ActorNetwork
+# from .critic_network_v2 import CriticNetwork
+from .critic_network_v2_with_dropout import CriticNetwork
 # from .critic_network_v3 import CriticNetwork
 import os
 

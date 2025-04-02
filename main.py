@@ -52,7 +52,7 @@ assets = [
 rebalance_window = 1
 tx_fee_per_share = 0.005
 principal = 1000000
-num_episode = 1000
+num_episode = 500
 
 # Either Training mode or Evaluation mode should be run at a time
 is_training_mode = True
