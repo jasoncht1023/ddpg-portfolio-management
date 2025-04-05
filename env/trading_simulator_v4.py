@@ -187,12 +187,29 @@ class TradingSimulator:
             if values[i] > max_so_far:
                 max_so_far = values[i]
             else:
-                drawdown = (max_so_far - values[i]) / values[i]
+                drawdown = (max_so_far - values[i]) / max_so_far
                 drawdowns.append(drawdown)
         return max(drawdowns)
     
     def total_portfolio_value(self):
         return self.portfolio_value
+    
+    def period_return(self, periood_return_history):
+        start_value = periood_return_history.iloc[0] 
+        end_value = periood_return_history.iloc[-1] 
+        return (end_value - start_value) / start_value * 100 
+    
+    def avg_yearly_return(self):
+        portfolio_history = pd.DataFrame({"date": pd.to_datetime(self.trading_dates), "value": self.value_history})
+        annual_return_rates = portfolio_history.groupby(portfolio_history['date'].dt.year)['value'].apply(self.period_return).reset_index()
+        annual_return_rates.columns = ["year", "return_rate"]
+        return annual_return_rates["return_rate"].mean()
+    
+    def avg_monthly_return(self):
+        portfolio_history = pd.DataFrame({"date": pd.to_datetime(self.trading_dates), "value": self.value_history})
+        monthly_return_rates = portfolio_history.groupby(portfolio_history['date'].dt.to_period("M"))['value'].apply(self.period_return).reset_index()
+        monthly_return_rates.columns = ["month", "return_rate"]
+        return monthly_return_rates["return_rate"].mean()
 
     def restart(self):
         # Reset the initial portfolio
@@ -244,7 +261,7 @@ class TradingSimulator:
             self.portfolio[i].set_value(self.portfolio[i].get_price() * self.portfolio[i].get_num_shares())
             new_value += self.portfolio[i].get_value()
 
-        # Decucting ;ast day transaction fee from the portfolio value
+        # Deducting last day transaction fee from the portfolio value
         new_value -= self.tx_cost_history[-1]
         
         # Adjust the weighting of each asset in the portfolio based on the new portfolio value
@@ -268,7 +285,7 @@ class TradingSimulator:
         self.portfolio_value = new_value
         self.value_history.append(new_value)
         # reward = np.log(self.portfolio_value / old_portfolio_value)
-        reward = self.portfolio_value - old_portfolio_value
+        reward = self.portfolio_value - old_portfolio_value - total_tx_cost
 
         self.time += 1
 
