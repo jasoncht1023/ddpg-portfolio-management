@@ -24,7 +24,8 @@ class Agent(object):
 
         # self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
         #                             lstm_size=100, name="critic", chkpt_dir=self.model_dir)
-
+        # self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
+        #                             lstm_size=64, name="critic", chkpt_dir=self.model_dir)
         self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
                                     fc1_dims=256, fc2_dims=128, fc3_dims=64, name="critic", chkpt_dir=self.model_dir)
 
@@ -32,8 +33,9 @@ class Agent(object):
                                          fc1_dims=256, fc2_dims=128, fc3_dims=64, name="target_actor", chkpt_dir=self.model_dir)
 
         # self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
-        #                                    lstm_size=100, name="target_critic", chkpt_dir=self.model_dir)
-        
+        #                                    lstm_size=100, name="target_critic", chkpt_dir=self.model_dir)        
+        # self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
+        #                                    lstm_size=64, name="target_critic", chkpt_dir=self.model_dir)
         self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
                                            fc1_dims=256, fc2_dims=128, fc3_dims=64, name="target_critic", chkpt_dir=self.model_dir)
 
@@ -66,7 +68,8 @@ class Agent(object):
                     mu += T.tensor(self.noise(), dtype=T.float).to(self.actor.device)       
 
         mu = self.softmax(mu)                               # Ensure actions sum to 1      
-        
+        # mu = T.tanh(mu) + 1                               # for v4, actions are in [-1, 1]
+
         return mu.cpu().detach().numpy()   
 
     def remember(self, state, action, reward, new_state, done):
