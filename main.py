@@ -66,6 +66,8 @@ training_mode = {
 # RL models must have a trained model to be evaluated
 testing_mode = {
     "ddpg": 1,
+    "GOD": 0,
+    "all-in last day best return": 1,
     "uniform_with_rebalance": 1,
     "uniform_without_rebalance": 1,
     "basic_MPT": 1
@@ -156,6 +158,57 @@ else:
             total_return += reward
             observation = new_state
             return_history["ddpg"].append(total_return)
+
+        utils.print_eval_results(env, total_return)
+
+    if (testing_mode["GOD"] == 1):
+        return_history["GOD"] = []
+
+        print("--------------------GOD--------------------")
+        observation = env.restart()
+        done = 0
+        total_return = 0
+        n = len(assets)
+
+        while not done:
+            action = [0] * (n+1)
+            if env.time < len(env.close_price) - 2:
+                action_close_price = np.array([x for x in env.close_price.iloc[env.time]])
+                forward_close_price = np.array([x for x in env.close_price.iloc[env.time+1]])
+                logr = np.log(np.divide(forward_close_price, action_close_price))
+                if np.max(logr) >= 0:
+                    action[np.argmax(logr)] = 1
+                else:
+                    action[-1] = 1
+            else:
+                action[-1] = 1
+            new_state, reward, done = env.step(action)
+            total_return += reward
+            return_history["GOD"].append(total_return)
+
+        utils.print_eval_results(env, total_return)
+
+    if (testing_mode["all-in last day best return"] == 1):
+        return_history["all-in last day best return"] = []
+
+        print("--------------------all-in last day best return--------------------")
+        observation = env.restart()
+        done = 0
+        total_return = 0
+        n = len(assets)
+
+        while not done:
+            action = [0] * (n+1)
+            curr_close_price = np.array([x for x in env.close_price.iloc[env.time]])
+            prev_close_price = np.array([x for x in env.close_price.iloc[env.time-1]])
+            logr = np.log(np.divide(prev_close_price, curr_close_price))
+            if np.max(logr) >= 0:
+                action[np.argmax(logr)] = 1
+            else:
+                action[-1] = 1
+            new_state, reward, done = env.step(action)
+            total_return += reward
+            return_history["all-in last day best return"].append(total_return)
 
         utils.print_eval_results(env, total_return)
 
