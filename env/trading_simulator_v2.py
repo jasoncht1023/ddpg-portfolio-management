@@ -128,7 +128,7 @@ class TradingSimulator:
                 drawdowns.append(drawdown)
                 max_so_far = values[i]
             else:
-                drawdown = (max_so_far - values[i]) / values[i]
+                drawdown = (max_so_far - values[i]) / max_so_far
                 drawdowns.append(drawdown)
         return max(drawdowns)
     
