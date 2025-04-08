@@ -146,6 +146,9 @@ class TradingSimulator:
     
     def total_portfolio_value(self):
         return self.portfolio_value
+    
+    def trading_date_range(self):
+        return self.trading_dates[1:]
 
     def restart(self):
         # Reset the initial portfolio

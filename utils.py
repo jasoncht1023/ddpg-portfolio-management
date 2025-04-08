@@ -1,4 +1,5 @@
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 def plot_return_over_episodes(episode_axis, return_axis, label):
     plt.title("Total return over episodes")
@@ -36,13 +37,17 @@ def plot_mean_critic_loss_over_episodes(episode_axis, critic_loss_axis, label):
     plt.savefig("evaluation/training_critic_loss.png", dpi=300, bbox_inches="tight")
     plt.clf()
 
-def plot_testing_return(time_axis, testing_modes, return_history):
+def plot_testing_return(env, testing_modes, return_history):
     plt.title("Cumulative return over time")
-    plt.xlabel('Time') 
+    plt.xlabel('Date') 
     plt.ylabel('Cumulative return')
+    date_axis = env.trading_date_range()
+    plt.xticks(rotation=45)
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=15))
     for mode in testing_modes:
         if (testing_modes[mode] == 1):
-            plt.plot(time_axis, return_history[mode], label=mode)
+            plt.plot(date_axis, return_history[mode], label=mode)
     plt.legend()
     plt.savefig("evaluation/testing_cumulative_return.png", dpi=300, bbox_inches="tight")
     plt.clf()

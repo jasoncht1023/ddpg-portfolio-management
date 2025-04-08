@@ -264,5 +264,4 @@ if (is_training_mode == True):
     utils.plot_mean_actor_loss_over_episodes(episode_axis, actor_loss_history, "ddpg")
     utils.plot_mean_critic_loss_over_episodes(episode_axis, critic_loss_history, "ddpg")
 else:
-    time_axis = range(1, len(return_history[list(return_history.keys())[0]])+1)               # Get the number of times of portfolio rebalance
-    utils.plot_testing_return(time_axis, testing_mode, return_history)
+    utils.plot_testing_return(env, testing_mode, return_history)
