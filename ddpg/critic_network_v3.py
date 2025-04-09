@@ -60,13 +60,17 @@ class CriticNetwork(nn.Module):
         state_value = self.fc3(state_value)
         state_value = self.bn3(state_value)
 
-        # action_value = self.action_value(action)
-        # action_value = F.relu(action_value)
+        action_value = self.action_value(action)
+        action_value = F.relu(action_value)
 
-        state_action_vaule = T.cat((state_value, action), dim=-1)
-        state_action_value = self.bn4(state_action_vaule)
-        state_action_value = F.relu(state_action_value)                 # might need to change, relu then add vs add then relu
+        state_action_value = T.add(state_value, action_value)
+        state_action_value = F.relu(state_action_value) 
         state_action_value = self.q(state_action_value)
+
+        # state_action_vaule = T.cat((state_value, action), dim=-1)
+        # state_action_value = self.bn4(state_action_vaule)
+        # state_action_value = F.relu(state_action_value)                 # might need to change, relu then add vs add then relu
+        # state_action_value = self.q(state_action_value)
 
         return state_action_value
 
