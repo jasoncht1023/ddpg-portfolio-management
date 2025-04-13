@@ -313,7 +313,7 @@ class TradingSimulator:
         prev_close_price = (prev_close_price - prev_close_price.mean())/(prev_close_price.std())
         tangent_portfolio = self.tangent_portfolios[self.time]                                          # Tangent portfolio weights
 
-        initial_input = np.concatenate((log_return, dev, curr_obv, prev_obv, diff, curr_rsi, prev_rsi, tangent_portfolio))
+        initial_input = np.concatenate((curr_close_price, prev_close_price, log_return, dev, curr_obv, prev_obv, diff, curr_rsi, prev_rsi, tangent_portfolio, holdings))
 
         return initial_input
 
@@ -377,7 +377,7 @@ class TradingSimulator:
         holdings = np.array([asset.get_weighting() for asset in self.portfolio])                      # Share and cash holdings 
         tangent_portfolio = self.tangent_portfolios[self.time]                                          # Tangent portfolio weights
 
-        new_state = np.concatenate((log_return, dev, curr_obv, prev_obv, diff, curr_rsi, prev_rsi, tangent_portfolio))  # Concatenate the new state variables
+        new_state = np.concatenate((curr_close_price, prev_close_price, log_return, dev, curr_obv, prev_obv, diff, curr_rsi, prev_rsi, tangent_portfolio, holdings))  # Concatenate the new state variables
 
         if (self.time == len(self.close_price)-1):                                                    # Indicate the end of the episode 
             done = 1
