@@ -4,7 +4,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 import os
-from .actor_network_v2 import ActorNetwork
+from .actor_network_fc import ActorNetwork
 
 # Critic / Q-value Network / Q
 # evaluate state/action pairs
@@ -14,12 +14,10 @@ class CriticNetwork(nn.Module):
         self.name = name
         layer_dims = (n_actions-1) * 4 + n_actions * 2 + 1 
         self.relu = nn.ReLU()       
+        self.dropout = nn.Dropout(p=0.15)
 
-        self.lstm1 = nn.LSTM(layer_dims, lstm_size)
-        self.__init_lstm(self.lstm1)
-
-        self.lstm2 = nn.LSTM(lstm_size, lstm_size)
-        self.__init_lstm(self.lstm2)
+        self.lstm = nn.LSTM(input_size=layer_dims, hidden_size=lstm_size, num_layers=2, dropout=0.2)
+        self.__init_lstm(self.lstm)
 
         self.fc = nn.Linear(lstm_size, layer_dims)
         self.bn = nn.LayerNorm(layer_dims)
@@ -38,12 +36,14 @@ class CriticNetwork(nn.Module):
     def forward(self, state, action):
         x = T.cat((state, action), dim=-1)
         x = x.unsqueeze(0)
-        output, (final_hidden_state, final_cell_state) = self.lstm1(x)
-        output, (final_hidden_state, final_cell_state) = self.lstm2(final_hidden_state)
-        x = final_hidden_state.squeeze(0)
+        output, (final_hidden_state, final_cell_state) = self.lstm(x)
+        x = final_hidden_state[-1]
+        # x = x.squeeze(0)
+        x = self.dropout(x)
         x = self.fc(x)
         x = self.bn(x)
         x = self.relu(x)
+        x = self.dropout(x)
         state_action_value = self.q(x)
 
         return state_action_value
