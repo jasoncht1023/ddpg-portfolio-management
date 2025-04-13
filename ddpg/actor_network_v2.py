@@ -12,7 +12,8 @@ class ActorNetwork(nn.Module):
         super(ActorNetwork, self).__init__()
         self.name = name
         self.n_actions = n_actions
-        self.input_size = (n_actions-1) * 4 + n_actions + 1
+        # self.input_size = (n_actions-1) * 4 + n_actions + 1
+        self.input_size = (n_actions - 1) * 7 + n_actions
         self.relu = nn.ReLU()
 
         self.fc1 = nn.Linear(self.input_size, fc1_dims)

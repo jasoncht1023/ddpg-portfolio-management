@@ -14,9 +14,9 @@ class CriticNetwork(nn.Module):
         self.name = name
         layer_dims = (n_actions-1) * 4 + n_actions * 2 + 1 
         self.relu = nn.ReLU()       
-        self.dropout = nn.Dropout(p=0.2)
+        self.dropout = nn.Dropout(p=0.15)
 
-        self.lstm = nn.LSTM(input_size=layer_dims, hidden_size=lstm_size, num_layers=2, dropout=0.35)
+        self.lstm = nn.LSTM(input_size=layer_dims, hidden_size=lstm_size, num_layers=2, dropout=0.2)
         self.__init_lstm(self.lstm)
 
         self.fc = nn.Linear(lstm_size, layer_dims)

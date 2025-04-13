@@ -13,7 +13,8 @@ class CriticNetwork(nn.Module):
     def __init__(self, learning_rate, n_actions, fc1_dims, fc2_dims, fc3_dims, name):
         super(CriticNetwork, self).__init__()
         self.name = name
-        input_size = (n_actions-1) * 4 + n_actions + 1
+        # input_size = (n_actions-1) * 4 + n_actions + 1
+        input_size = (n_actions - 1) * 7 + n_actions
         self.relu = nn.ReLU()
 
         # for state_value
@@ -39,7 +40,7 @@ class CriticNetwork(nn.Module):
 
         self.bn4 = nn.LayerNorm(fc3_dims + n_actions)
 
-        self.q = nn.Linear(fc3_dims + n_actions, 1)
+        self.q = nn.Linear(fc3_dims, 1)
         f4 = 0.0003
         T.nn.init.uniform_(self.q.weight.data, -f4, f4)
         T.nn.init.uniform_(self.q.bias.data, -f4, f4)

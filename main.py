@@ -1,7 +1,8 @@
 import pandas as pd
 from ddpg.agent_v2 import Agent
 import numpy as np
-from env.trading_simulator_v2 import TradingSimulator
+# from env.trading_simulator_v2 import TradingSimulator
+from env.trading_simulator_model_1 import TradingSimulator
 import os
 from scipy.optimize import minimize
 import utils
@@ -9,10 +10,10 @@ import utils
 # Configurations
 # Portfolio settings
 assets = [
-    "APA",
-    "LNC",
-    "RCL",
-    "FCX",
+    # "APA",
+    # "LNC",
+    # "RCL",
+    # "FCX",
     # "GOLD",
     # "FDP",
     # "NEM",
@@ -48,6 +49,13 @@ assets = [
     # "DIS"
     # "AMD",
     # "ADDYY",
+    "AMD",
+    "BA",
+    "SBUX",
+    "TLT",
+    # "GLD",
+    # "NKE", 
+    # "CVX"
 ]
 rebalance_window = 1
 tx_fee_per_share = 0.005
@@ -79,13 +87,15 @@ sharpe_ratio_history = {}
 actor_loss_history = []
 critic_loss_history = []
 
-# Trading environment initialization
-env = TradingSimulator(principal=principal, assets=assets, start_date="2009-01-01", end_date="2017-12-31", 
+# Trading environment initialization (2014-2022)
+env = TradingSimulator(principal=principal, assets=assets, start_date="2013-01-01", end_date="2022-12-31", 
                        rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 # Default: alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
-agent = Agent(alpha=0.0001, beta=0.0005, gamma=0.99, tau=0.03, 
-              input_dims=[len(assets) * 5 + 2], batch_size=128, n_actions=len(assets)+1)
+# agent = Agent(alpha=0.0001, beta=0.005, gamma=0.99, tau=0.03, 
+#               input_dims=[len(assets) * 5 + 2], batch_size=128, n_actions=len(assets)+1)
+agent = Agent(alpha=0.0001, beta=0.005, gamma=0.99, tau=0.03, 
+              input_dims=[len(assets) * 8 + 1], batch_size=128, n_actions=len(assets)+1)
 
 # Training algorithms:
 if (is_training_mode == True):
