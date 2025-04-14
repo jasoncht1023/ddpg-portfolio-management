@@ -298,13 +298,14 @@ else:
 
         while not done:
             action = []
-            if env.time > 3 and env.time % 1 == 0:
-                t = max(env.time - 5, 0)
+            window = 5
+            if env.time > 3:
+                t = max(env.time - window, 0)
                 r = env.close_price[t : env.time].pct_change().dropna()
                 exp_r = r.mean()
                 cov = r.cov()
                 d = pd.to_datetime(env.trading_dates[env.time])
-                risk_free_rate = risk_free_rates[risk_free_rates["year"] == d.year]["risk_free_rate"].values[0]
+                risk_free_rate = (1+risk_free_rates[risk_free_rates["year"] == d.year]["risk_free_rate"].values[0]/100)**(1/252 * min(env.time, window)) - 1
                 
                 # Calculate tangent portfolio weights
                 weights = calculate_tangent_portfolio(exp_r, cov, risk_free_rate)
