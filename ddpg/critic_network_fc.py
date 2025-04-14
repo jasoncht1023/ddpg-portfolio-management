@@ -2,10 +2,8 @@ import torch as T
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-import tensorly as tl
 import numpy as np
 import os
-from .actor_network import ActorNetwork
 
 # Critic / Q-value Network / Q
 # evaluate state/action pairs
@@ -85,18 +83,3 @@ class CriticNetwork(nn.Module):
         if os.path.exists(checkpoint_file): 
             print("... loading checkpoint ...")
             self.load_state_dict(T.load(checkpoint_file)) 
-
-# for testing only
-if __name__ == "__main__":
-    learning_rate = 1e-2
-    actor_net = ActorNetwork(
-        learning_rate=learning_rate, n_actions=10, name="actor_model_test"
-    )
-    critic_net = CriticNetwork(
-        learning_rate=learning_rate, n_actions=10, name="critic_model_test"
-    )
-
-    state_example = T.randn(4, 10, 10, 10).to(actor_net.device)
-    action = actor_net(state_example)
-    action_state_value = critic_net(state_example, action)
-    print(action_state_value)

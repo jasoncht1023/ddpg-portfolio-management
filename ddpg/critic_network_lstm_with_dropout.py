@@ -1,10 +1,7 @@
 import torch as T
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
-import numpy as np
 import os
-from .actor_network_fc import ActorNetwork
 
 # Critic / Q-value Network / Q
 # evaluate state/action pairs
@@ -12,20 +9,20 @@ class CriticNetwork(nn.Module):
     def __init__(self, learning_rate, n_actions, lstm_size, name):
         super(CriticNetwork, self).__init__()
         self.name = name
-        layer_dims = (n_actions-1) * 4 + n_actions * 2 + 1 
+        input_size = (n_actions-1) * 4 + n_actions * 2 + 1 
         self.relu = nn.ReLU()       
         self.dropout = nn.Dropout(p=0.15)
 
-        self.lstm = nn.LSTM(input_size=layer_dims, hidden_size=lstm_size, num_layers=2, dropout=0.2)
+        self.lstm = nn.LSTM(input_size=input_size, hidden_size=lstm_size, num_layers=2, dropout=0.2)
         self.__init_lstm(self.lstm)
 
-        self.fc = nn.Linear(lstm_size, layer_dims)
-        self.bn = nn.LayerNorm(layer_dims)
+        self.fc = nn.Linear(lstm_size, input_size)
+        self.bn = nn.LayerNorm(input_size)
         f1 = 0.004           
         nn.init.uniform_(self.fc.weight.data, -f1, f1)
         nn.init.uniform_(self.fc.bias.data, -f1, f1)
 
-        self.q = nn.Linear(layer_dims, 1)
+        self.q = nn.Linear(input_size, 1)
 
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
 
@@ -69,18 +66,3 @@ class CriticNetwork(nn.Module):
         if os.path.exists(checkpoint_file): 
             print("... loading checkpoint ...")
             self.load_state_dict(T.load(checkpoint_file)) 
-
-# for testing only
-if __name__ == "__main__":
-    learning_rate = 1e-2
-    actor_net = ActorNetwork(
-        learning_rate=learning_rate, n_actions=10, name="actor_model_test"
-    )
-    critic_net = CriticNetwork(
-        learning_rate=learning_rate, n_actions=10, name="critic_model_test"
-    )
-
-    state_example = T.randn(4, 10, 10, 10).to(actor_net.device)
-    action = actor_net(state_example)
-    action_state_value = critic_net(state_example, action)
-    print(action_state_value)

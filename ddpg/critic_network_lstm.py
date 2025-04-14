@@ -1,10 +1,7 @@
 import torch as T
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
-import numpy as np
 import os
-from .actor_network_fc import ActorNetwork
 
 # Critic / Q-value Network / Q
 # evaluate state/action pairs
@@ -12,8 +9,8 @@ class CriticNetwork(nn.Module):
     def __init__(self, learning_rate, n_actions, lstm_size, fc_size, name):
         super(CriticNetwork, self).__init__()
         self.name = name
-        # layer_dims = (n_actions-1) * 4 + n_actions * 2 + 1 
-        input_size = (n_actions - 1) * 7 + 2 * n_actions
+        # input_size = (n_actions-1) * 4 + n_actions * 2 + 1 
+        input_size = (n_actions - 1) * 10 + n_actions * 2
         self.relu = nn.ReLU()       
 
         self.lstm1 = nn.LSTM(input_size, lstm_size)
@@ -70,18 +67,3 @@ class CriticNetwork(nn.Module):
         if os.path.exists(checkpoint_file): 
             print("... loading checkpoint ...")
             self.load_state_dict(T.load(checkpoint_file)) 
-
-# for testing only
-if __name__ == "__main__":
-    learning_rate = 1e-2
-    actor_net = ActorNetwork(
-        learning_rate=learning_rate, n_actions=10, name="actor_model_test"
-    )
-    critic_net = CriticNetwork(
-        learning_rate=learning_rate, n_actions=10, name="critic_model_test"
-    )
-
-    state_example = T.randn(4, 10, 10, 10).to(actor_net.device)
-    action = actor_net(state_example)
-    action_state_value = critic_net(state_example, action)
-    print(action_state_value)
