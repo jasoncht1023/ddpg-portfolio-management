@@ -4,34 +4,44 @@ import torch.nn as nn
 import numpy as np
 from .ou_action_noise import OUActionNoise
 from .replay_buffer import ReplayBuffer
-from .actor_network import ActorNetwork
-from .critic_network import CriticNetwork
+# from .actor_network_fc import ActorNetwork
+from .actor_network_lstm import ActorNetwork
+# from .actor_network_lstm_with_dropout import ActorNetwork
+# from .critic_network_fc import CriticNetwork
+from .critic_network_lstm import CriticNetwork
+# from .critic_network_lstm_with_dropout import CriticNetwork
 import os
-
 
 # alpha and beta are the learning rate for actor and critic network, gamma is the discount factor for future reward
 # tau is the "update rate" of the target networks oarameters (param_target = tau * param_online + (1-tau) * param_target)
 class Agent(object):
-    def __init__(self, alpha, beta, input_dims, tau, gamma, n_actions, max_size=500000, batch_size=64):
+    def __init__(self, alpha, beta, input_dims, tau, gamma, n_actions, max_size=300000, batch_size=64):
         self.gamma = gamma
         self.tau = tau
         self.memory = ReplayBuffer(max_size, input_dims, n_actions)
         self.batch_size = batch_size
-        self.model_dir = "trained_model"
 
-        self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
-                                  input_dims=input_dims, fc_dims=400, name="actor", chkpt_dir=self.model_dir)
+        # self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
+        #                           fc1_dims=256, fc2_dims=128, fc3_dims=64, name="actor")
 
-        self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
-                                    input_dims=input_dims, fc_dims=400, name="critic", chkpt_dir=self.model_dir)
+        self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, lstm_size=100, fc_size=50, name="actor")
 
-        self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
-                                         input_dims=input_dims, fc_dims=400, name="target_actor", chkpt_dir=self.model_dir)
+        # self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
+        #                             fc1_dims=256, fc2_dims=128, fc3_dims=64, name="critic")
 
-        self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
-                                           input_dims=input_dims, fc_dims=400, name="target_critic", chkpt_dir=self.model_dir)
+        self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, lstm_size=100, fc_size=50, name="critic")
 
-        self.noise = OUActionNoise(mu=np.zeros(n_actions))
+        # self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
+        #                                  fc1_dims=256, fc2_dims=128, fc3_dims=64, name="target_actor")
+
+        self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, lstm_size=100, fc_size=50, name="target_actor")
+
+        # self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
+        #                                    fc1_dims=256, fc2_dims=128, fc3_dims=64, name="target_critic")
+
+        self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, lstm_size=100, fc_size=50, name="target_critic")
+
+        self.noise = OUActionNoise(mu=np.zeros(n_actions), sigma=0.3, theta=0.2)
 
         self.softmax = nn.Softmax(dim=-1)
 
@@ -39,63 +49,55 @@ class Agent(object):
 
         self.update_network_parameters(tau=1)
 
-    def choose_action(self, observation):
+    def choose_action(self, observation, is_training):
         self.actor.eval()
         observation = T.tensor(observation, dtype=T.float).to(self.actor.device)
-        # observation = observation.clone().detach().requires_grad_(True).to(self.actor.device)
         mu = self.actor.forward(observation).to(self.actor.device)
-        # print("mu:", mu)
-        mu_prime = mu + T.tensor(self.noise(), dtype=T.float).to(self.actor.device)
-        # mu_prime = mu + T.tensor(np.random.normal(scale=0.05, size=self.n_actions)).to(self.actor.device)        # Adding gaussian noise
         self.actor.train()
-        # print("mu_prime after adding noise:", mu_prime)
-        mu_prime = self.softmax(mu_prime)                       # Actions sum to 1
-        # print("softmax:", mu_prime)       
-        mu_prime = mu_prime
+        # print("mu:", mu)
 
-        return mu_prime.cpu().detach().numpy()   
+        # Epsilon-greedy exploration using noise
+        if (is_training == True):
+            epsilon = np.random.rand()
+            if (self.memory.mem_cntr < 5000):
+                if (epsilon < 0.5):
+                    mu += T.tensor(self.noise(), dtype=T.float).to(self.actor.device)
+            elif (self.memory.mem_cntr < 10000):
+                if (epsilon < 0.25):
+                    mu += T.tensor(self.noise(), dtype=T.float).to(self.actor.device)
+            else:
+                if (epsilon < 0.1):
+                    mu += T.tensor(self.noise(), dtype=T.float).to(self.actor.device)       
+
+        mu = self.softmax(mu)                               # Ensure actions sum to 1      
+        
+        return mu.cpu().detach().numpy()   
 
     def remember(self, state, action, reward, new_state, done):
         self.memory.store_transition(state, action, reward, new_state, done)
 
     def learn(self):
         # Does not begin learning until the replay buffer is filled with at least a batch size
-        if self.memory.mem_cntr < self.batch_size:
-            return
+        if (self.memory.mem_cntr < self.batch_size):
+            return None, None
         
-        state, action, reward, new_state, done = self.memory.sample_buffer(self.batch_size)
+        T.backends.cudnn.enabled = False
+
+        states, action, reward, new_states, done = self.memory.sample_buffer(self.batch_size)
         
         # Change them to numpy arrays and will be used in critic network
         reward = T.tensor(reward, dtype=T.float).to(self.critic.device)
         done = T.tensor(done).to(self.critic.device)
-        new_state = T.tensor(new_state, dtype=T.float).to(self.critic.device)
+        new_states = T.tensor(new_states, dtype=T.float).to(self.critic.device)
         action = T.tensor(action, dtype=T.float).to(self.critic.device)
-        state = T.tensor(state, dtype=T.float).to(self.critic.device)
-
-        self.target_actor.eval()
-        self.target_critic.eval()
-        self.critic.eval()
+        states = T.tensor(states, dtype=T.float).to(self.critic.device)
 
         # Calculate the target actions like the bellman equation in Q-learning
-
         # The targets we want to move towards
-        # refactor needed
-        target_actions = [
-            self.target_actor.forward(input_tensor) for input_tensor in new_state
-        ]
-        target_critic_value = [
-            self.target_critic.forward(new_state[i], action)
-            for i, action in enumerate(target_actions)
-        ]
-        critic_value = [
-            self.critic.forward(state[i], action)
-            for i, action in enumerate(target_actions)
-        ]
-
-        target_actions = T.stack(target_actions).to(self.critic.device)
-        target_critic_value = T.stack(target_critic_value).to(self.critic.device)
-        critic_value = T.stack(critic_value).to(self.critic.device)
-
+        target_actions = self.target_actor.forward(new_states)
+        target_critic_value = self.target_critic.forward(new_states, target_actions)
+        critic_value = self.critic.forward(states, action)
+        
         target = []
         for i in range(self.batch_size):
             target.append(reward[i] + self.gamma * (1 - done[i]) * target_critic_value[i])
@@ -103,25 +105,25 @@ class Agent(object):
         target = target.view(self.batch_size, 1)
 
         # Calculation of the loss function for the critic network
-        self.critic.train()
         self.critic.optimizer.zero_grad()
-        critic_loss = F.mse_loss(critic_value, target)
+        # critic_loss = F.mse_loss(critic_value, target)
+        critic_loss = F.huber_loss(critic_value, target, delta=1)
+        cl = critic_loss.cpu().detach().numpy()
         critic_loss.backward()
         self.critic.optimizer.step()
-        self.critic.eval()
 
         # Calculation of the loss function for the actor network
         self.actor.optimizer.zero_grad()
-        mu = [self.actor.forward(input_tensor) for input_tensor in state]
-        mu = T.stack(mu).to(self.actor.device)
-        self.actor.train()
-        actor_loss = [-self.critic.forward(state[i], action) for i, action in enumerate(mu)]
-        actor_loss = T.stack(actor_loss).to(self.actor.device)
+        mu = self.actor.forward(states)
+        actor_loss = -self.critic.forward(states, mu)
         actor_loss = T.mean(actor_loss)
+        al = actor_loss.cpu().detach().numpy()
         actor_loss.backward()
         self.actor.optimizer.step()
 
         self.update_network_parameters(tau=self.tau)
+
+        return al, cl
 
     def update_network_parameters(self, tau):
         actor_params = self.actor.named_parameters()
@@ -145,49 +147,17 @@ class Agent(object):
 
         self.target_actor.load_state_dict(actor_state_dict)
 
-        """
-        #Verify that the copy assignment worked correctly
-        target_actor_params = self.target_actor.named_parameters()
-        target_critic_params = self.target_critic.named_parameters()
+    def save_models(self, saving_dir):
+        if not os.path.isdir(saving_dir): 
+            os.makedirs(saving_dir)
 
-        critic_state_dict = dict(target_critic_params)
-        actor_state_dict = dict(target_actor_params)
-        print('\nActor Networks', tau)
-        for name, param in self.actor.named_parameters():
-            print(name, T.equal(param, actor_state_dict[name]))
-        print('\nCritic Networks', tau)
-        for name, param in self.critic.named_parameters():
-            print(name, T.equal(param, critic_state_dict[name]))
-        input()
-        """
+        self.actor.save_checkpoint(saving_dir)
+        self.target_actor.save_checkpoint(saving_dir)
+        self.critic.save_checkpoint(saving_dir)
+        self.target_critic.save_checkpoint(saving_dir)
 
-    def save_models(self):
-        if not os.path.isdir(self.model_dir): 
-            os.makedirs(self.model_dir)
-
-        self.actor.save_checkpoint()
-        self.target_actor.save_checkpoint()
-        self.critic.save_checkpoint()
-        self.target_critic.save_checkpoint()
-
-    def load_models(self):
-        self.actor.load_checkpoint()
-        self.target_actor.load_checkpoint()
-        self.critic.load_checkpoint()
-        self.target_critic.load_checkpoint()
-
-    def check_actor_params(self):
-        current_actor_params = self.actor.named_parameters()
-        current_actor_dict = dict(current_actor_params)
-        original_actor_dict = dict(self.original_actor.named_parameters())
-        original_critic_dict = dict(self.original_critic.named_parameters())
-        current_critic_params = self.critic.named_parameters()
-        current_critic_dict = dict(current_critic_params)
-        print("Checking Actor parameters")
-
-        for param in current_actor_dict:
-            print(param, T.equal(original_actor_dict[param], current_actor_dict[param]))
-        print("Checking critic parameters")
-        for param in current_critic_dict:
-            print(param, T.equal(original_critic_dict[param], current_critic_dict[param]))
-        input()
+    def load_models(self, loading_dir):
+        self.actor.load_checkpoint(loading_dir)
+        self.target_actor.load_checkpoint(loading_dir)
+        self.critic.load_checkpoint(loading_dir)
+        self.target_critic.load_checkpoint(loading_dir)

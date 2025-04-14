@@ -1,33 +1,31 @@
 import torch as T
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
-import numpy as np
 import os
-from .actor_network_v2 import ActorNetwork
 
 # Critic / Q-value Network / Q
 # evaluate state/action pairs
 class CriticNetwork(nn.Module):
-    def __init__(self, learning_rate, n_actions, lstm_size, name, chkpt_dir="ddpg/trained_model"):
+    def __init__(self, learning_rate, n_actions, lstm_size, fc_size, name):
         super(CriticNetwork, self).__init__()
-        layer_dims = (n_actions-1) * 4 + n_actions * 2 + 1 
-        self.relu = nn.ReLU()
-        self.checkpoint_file = os.path.join(chkpt_dir, name + "_ddpg")
+        self.name = name
+        # input_size = (n_actions-1) * 4 + n_actions * 2 + 1 
+        input_size = (n_actions - 1) * 10 + n_actions * 2
+        self.relu = nn.ReLU()       
 
-        self.lstm1 = nn.LSTM(layer_dims, lstm_size)
+        self.lstm1 = nn.LSTM(input_size, lstm_size)
         self.__init_lstm(self.lstm1)
 
         self.lstm2 = nn.LSTM(lstm_size, lstm_size)
         self.__init_lstm(self.lstm2)
 
-        self.fc = nn.Linear(lstm_size, layer_dims)
-        self.bn = nn.LayerNorm(layer_dims)
+        self.fc = nn.Linear(lstm_size, fc_size)
+        self.bn = nn.LayerNorm(fc_size)
         f1 = 0.004           
         nn.init.uniform_(self.fc.weight.data, -f1, f1)
         nn.init.uniform_(self.fc.bias.data, -f1, f1)
 
-        self.q = nn.Linear(layer_dims, 1)
+        self.q = nn.Linear(fc_size, 1)
 
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
 
@@ -59,26 +57,13 @@ class CriticNetwork(nn.Module):
                 hidden_size = param.shape[0] // 4 
                 param.data[hidden_size:hidden_size * 2].fill_(1)  
 
-    def save_checkpoint(self):
+    def save_checkpoint(self, saving_dir):
         print("... saving checkpoint ...")
-        T.save(self.state_dict(), self.checkpoint_file)
+        checkpoint_file = os.path.join(saving_dir, self.name + "_ddpg")
+        T.save(self.state_dict(), checkpoint_file)
 
-    def load_checkpoint(self):
-        if os.path.exists(self.checkpoint_file): 
+    def load_checkpoint(self, loading_dir):
+        checkpoint_file = os.path.join(loading_dir, self.name + "_ddpg")
+        if os.path.exists(checkpoint_file): 
             print("... loading checkpoint ...")
-            self.load_state_dict(T.load(self.checkpoint_file))    
-
-# for testing only
-if __name__ == "__main__":
-    learning_rate = 1e-2
-    actor_net = ActorNetwork(
-        learning_rate=learning_rate, n_actions=10, name="actor_model_test"
-    )
-    critic_net = CriticNetwork(
-        learning_rate=learning_rate, n_actions=10, name="critic_model_test"
-    )
-
-    state_example = T.randn(4, 10, 10, 10).to(actor_net.device)
-    action = actor_net(state_example)
-    action_state_value = critic_net(state_example, action)
-    print(action_state_value)
+            self.load_state_dict(T.load(checkpoint_file)) 

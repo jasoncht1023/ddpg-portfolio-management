@@ -2,19 +2,18 @@ import torch as T
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-import tensorly as tl
 import numpy as np
 import os
-from .actor_network import ActorNetwork
 
 # Critic / Q-value Network / Q
 # evaluate state/action pairs
 class CriticNetwork(nn.Module):
-    def __init__(self, learning_rate, n_actions, fc1_dims, fc2_dims, fc3_dims, name, chkpt_dir="ddpg/trained_model"):
+    def __init__(self, learning_rate, n_actions, fc1_dims, fc2_dims, fc3_dims, name):
         super(CriticNetwork, self).__init__()
-        input_size = (n_actions-1) * 4 + n_actions + 1
+        self.name = name
+        # input_size = (n_actions-1) * 4 + n_actions + 1
+        input_size = (n_actions - 1) * 7 + n_actions
         self.relu = nn.ReLU()
-        self.checkpoint_file = os.path.join(chkpt_dir, name + "_ddpg")
 
         # for state_value
         self.fc1 = nn.Linear(input_size, fc1_dims)
@@ -39,7 +38,7 @@ class CriticNetwork(nn.Module):
 
         self.bn4 = nn.LayerNorm(fc3_dims + n_actions)
 
-        self.q = nn.Linear(fc3_dims + n_actions, 1)
+        self.q = nn.Linear(fc3_dims, 1)
         f4 = 0.0003
         T.nn.init.uniform_(self.q.weight.data, -f4, f4)
         T.nn.init.uniform_(self.q.bias.data, -f4, f4)
@@ -60,36 +59,27 @@ class CriticNetwork(nn.Module):
         state_value = self.fc3(state_value)
         state_value = self.bn3(state_value)
 
-        # action_value = self.action_value(action)
-        # action_value = F.relu(action_value)
+        action_value = self.action_value(action)
+        action_value = F.relu(action_value)
 
-        state_action_vaule = T.cat((state_value, action), dim=-1)
-        state_action_value = self.bn4(state_action_vaule)
-        state_action_value = F.relu(state_action_value)                 # might need to change, relu then add vs add then relu
+        state_action_value = T.add(state_value, action_value)
+        state_action_value = F.relu(state_action_value) 
         state_action_value = self.q(state_action_value)
+
+        # state_action_vaule = T.cat((state_value, action), dim=-1)
+        # state_action_value = self.bn4(state_action_vaule)
+        # state_action_value = F.relu(state_action_value)                 # might need to change, relu then add vs add then relu
+        # state_action_value = self.q(state_action_value)
 
         return state_action_value
 
-    def save_checkpoint(self):
+    def save_checkpoint(self, saving_dir):
         print("... saving checkpoint ...")
-        T.save(self.state_dict(), self.checkpoint_file)
+        checkpoint_file = os.path.join(saving_dir, self.name + "_ddpg")
+        T.save(self.state_dict(), checkpoint_file)
 
-    def load_checkpoint(self):
-        if os.path.exists(self.checkpoint_file): 
+    def load_checkpoint(self, loading_dir):
+        checkpoint_file = os.path.join(loading_dir, self.name + "_ddpg")
+        if os.path.exists(checkpoint_file): 
             print("... loading checkpoint ...")
-            self.load_state_dict(T.load(self.checkpoint_file))    
-
-# for testing only
-if __name__ == "__main__":
-    learning_rate = 1e-2
-    actor_net = ActorNetwork(
-        learning_rate=learning_rate, n_actions=10, name="actor_model_test"
-    )
-    critic_net = CriticNetwork(
-        learning_rate=learning_rate, n_actions=10, name="critic_model_test"
-    )
-
-    state_example = T.randn(4, 10, 10, 10).to(actor_net.device)
-    action = actor_net(state_example)
-    action_state_value = critic_net(state_example, action)
-    print(action_state_value)
+            self.load_state_dict(T.load(checkpoint_file)) 

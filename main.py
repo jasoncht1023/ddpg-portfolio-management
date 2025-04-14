@@ -1,6 +1,7 @@
 import pandas as pd
-from ddpg.agent_v2 import Agent
+from ddpg.agent import Agent
 import numpy as np
+# from env.trading_simulator import TradingSimulator
 from env.trading_simulator_v2 import TradingSimulator
 import os
 from scipy.optimize import minimize
@@ -9,10 +10,10 @@ import utils
 # Configurations
 # Portfolio settings
 assets = [
-    "APA",
-    "LNC",
-    "RCL",
-    "FCX",
+    # "APA",
+    # "LNC",
+    # "RCL",
+    # "FCX",
     # "GOLD",
     # "FDP",
     # "NEM",
@@ -26,7 +27,7 @@ assets = [
     # "AMGN",
     # "HON",
     # "CRM",
-    # "AAPL",
+    "AAPL",
     # "INTC",
     # "TRV",
     # "BA",
@@ -43,16 +44,23 @@ assets = [
     # "WBA",
     # "KO",
     # "MRK",
-    # "WMT",
+    "WMT",
     # "MSFT",
     # "DIS"
     # "AMD",
     # "ADDYY",
+    # "AMD",
+    # "BA",
+    # "SBUX",
+    "TLT",
+    "GLD",
+    # "NKE", 
+    # "CVX"
 ]
 rebalance_window = 1
 tx_fee_per_share = 0.005
 principal = 1000000
-num_episode = 1000
+num_episode = 500
 
 # Either Training mode or Evaluation mode should be run at a time
 is_training_mode = False
@@ -79,18 +87,20 @@ sharpe_ratio_history = {}
 actor_loss_history = []
 critic_loss_history = []
 
-# Trading environment initialization
-env = TradingSimulator(principal=principal, assets=assets, start_date="2018-01-01", end_date="2024-12-31", 
+# Trading environment initialization (2014-2021)
+env = TradingSimulator(principal=principal, assets=assets, start_date="2022-01-01", end_date="2024-12-31", 
                        rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 # Default: alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
+# agent = Agent(alpha=0.0001, beta=0.005, gamma=0.99, tau=0.03, 
+#               input_dims=[len(assets) * 5 + 2], batch_size=128, n_actions=len(assets)+1)
 agent = Agent(alpha=0.0001, beta=0.0005, gamma=0.99, tau=0.03, 
-              input_dims=[len(assets) * 5 + 2], batch_size=128, n_actions=len(assets)+1)
+              input_dims=[len(assets) * 11 + 1], batch_size=128, n_actions=len(assets)+1)
 
 # Training algorithms:
 if (is_training_mode == True):
     if (training_mode["ddpg"] == 1):
-        agent.load_models()
+        agent.load_models("trained_model")
         np.random.seed(0)
         return_history["ddpg"] = []
         sharpe_ratio_history["ddpg"] = []
@@ -130,18 +140,27 @@ if (is_training_mode == True):
 
             # Save the model and plot training progress graphs every 5 episodes
             if (i % 5 == 0):
-                agent.save_models()
+                agent.save_models("trained_model")                
                 episode_axis = range(1, i+1)
                 utils.plot_return_over_episodes(episode_axis, return_history["ddpg"], "ddpg")
                 utils.plot_sharpe_ratio_over_episodes(episode_axis, sharpe_ratio_history["ddpg"], "ddpg")
                 utils.plot_mean_actor_loss_over_episodes(episode_axis, actor_loss_history, "ddpg")
                 utils.plot_mean_critic_loss_over_episodes(episode_axis, critic_loss_history, "ddpg")
             print(f"------Episode {i} Summary: Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
+
+            if (i == 100):
+                agent.save_models("trained_model_100") 
+            elif (i == 200):
+                agent.save_models("trained_model_200")    
+            elif (i == 300):
+                agent.save_models("trained_model_300")    
+            elif (i == 500):      
+                agent.save_models("trained_model_500") 
         print("DDPG training done")
 # Testing algorithms:
 else:
     if (testing_mode["ddpg"] == 1):
-        agent.load_models()
+        agent.load_models("trained_model")
         np.random.seed(0)
         return_history["ddpg"] = []
 
@@ -279,13 +298,14 @@ else:
 
         while not done:
             action = []
-            if env.time > 3 and env.time % 1 == 0:
-                t = max(env.time - 5, 0)
+            window = 5
+            if env.time > 3:
+                t = max(env.time - window, 0)
                 r = env.close_price[t : env.time].pct_change().dropna()
                 exp_r = r.mean()
                 cov = r.cov()
                 d = pd.to_datetime(env.trading_dates[env.time])
-                risk_free_rate = risk_free_rates[risk_free_rates["year"] == d.year]["risk_free_rate"].values[0]
+                risk_free_rate = (1+risk_free_rates[risk_free_rates["year"] == d.year]["risk_free_rate"].values[0]/100)**(1/252 * min(env.time, window)) - 1
                 
                 # Calculate tangent portfolio weights
                 weights = calculate_tangent_portfolio(exp_r, cov, risk_free_rate)
