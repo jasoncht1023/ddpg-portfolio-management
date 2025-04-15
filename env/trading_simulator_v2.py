@@ -103,7 +103,7 @@ class TradingSimulator:
         
         self.trading_dates = close_data["Date"].dt.date.astype(str).tolist()[1:]
         # self.rebalance_dates = [self.trading_dates[i] for i in range(len(self.trading_dates)) if (i+1) % rebalance_window == 0]
-        mpt_window = 10
+        mpt_window = 30
 
         rolling_cov = numpy_rolling_cov(returns.to_numpy(), mpt_window)[-len(self.trading_dates)-1:]
         rolling_exp_returns = returns.rolling(mpt_window).mean()[-len(self.trading_dates)-1:]
@@ -302,20 +302,16 @@ class TradingSimulator:
         log_return = np.log(np.divide(curr_close_price, prev_close_price))                              # Natural log of return
         prev_rsi = np.array([x for x in self.rsi.iloc[self.time-1]]) / 100.0                              # RSI of each asset at time t-1
         curr_rsi = np.array([x for x in self.rsi.iloc[self.time]]) / 100.0                                           # RSI of each asset at time t
-        dev = np.array([x for x in self.dev.iloc[self.time]])                                         # No. of Standard Deviation between price and the mid BollingerBand (MA20) of each asset at time t
         prev_obv = np.array([x for x in self.obv.iloc[self.time-1]])
         curr_obv = np.array([x for x in self.obv.iloc[self.time]])
         macd = np.array([x for x in self.macd.iloc[self.time]])
         signal = np.array([x for x in self.signal.iloc[self.time]])
         diff = macd - signal
-        diff = (diff - diff.mean())/(diff.std())
-
+        diff = self.min_max_scaling(diff)
         holdings = [asset.get_weighting() for asset in self.portfolio]                                  # Share and cash weightings 
-        curr_close_price = (curr_close_price - curr_close_price.mean())/(curr_close_price.std())        # Normalize closing price
-        prev_close_price = (prev_close_price - prev_close_price.mean())/(prev_close_price.std())
         tangent_portfolio = self.tangent_portfolios[self.time]                                          # Tangent portfolio weights
 
-        initial_input = np.concatenate((curr_close_price, prev_close_price, log_return, dev, curr_obv, prev_obv, diff, curr_rsi, prev_rsi, tangent_portfolio, holdings))
+        initial_input = np.concatenate((log_return, curr_obv, prev_obv, diff, curr_rsi, prev_rsi, tangent_portfolio, holdings))
 
         return initial_input
 
@@ -369,17 +365,16 @@ class TradingSimulator:
         log_return = np.array(np.log(np.divide(curr_close_price, prev_close_price)))                  # Natural log of return
         prev_rsi = np.array([x for x in self.rsi.iloc[self.time-1]]) / 100.0                              # RSI of each asset at time t-1
         curr_rsi = np.array([x for x in self.rsi.iloc[self.time]]) / 100.0
-        dev = np.array([x for x in self.dev.iloc[self.time]])                                         # No. of Standard Deviation between price and the mid BollingerBand (MA20) of each asset at time t
         prev_obv = np.array([x for x in self.obv.iloc[self.time-1]])
         curr_obv = np.array([x for x in self.obv.iloc[self.time]])
         macd = np.array([x for x in self.macd.iloc[self.time]])
         signal = np.array([x for x in self.signal.iloc[self.time]])
         diff = macd - signal
-        diff = (diff - diff.mean())/(diff.std())
+        diff = self.min_max_scaling(diff)
         holdings = np.array([asset.get_weighting() for asset in self.portfolio])                      # Share and cash holdings 
         tangent_portfolio = self.tangent_portfolios[self.time]                                          # Tangent portfolio weights
 
-        new_state = np.concatenate((curr_close_price, prev_close_price, log_return, dev, curr_obv, prev_obv, diff, curr_rsi, prev_rsi, tangent_portfolio, holdings))  # Concatenate the new state variables
+        new_state = np.concatenate((log_return, curr_obv, prev_obv, diff, curr_rsi, prev_rsi, tangent_portfolio, holdings))  # Concatenate the new state variables
 
         if (self.time == len(self.close_price)-1):                                                    # Indicate the end of the episode 
             done = 1
