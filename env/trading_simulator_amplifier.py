@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from env.asset import Asset
 from scipy.optimize import minimize
 
-class TradingSimulator2:
+class TradingSimulatorAmplifier:
     def __init__(self, principal, assets, start_date, end_date, rebalance_window, tx_fee_per_share):
         compute_date = datetime.strptime(start_date, '%Y-%m-%d') - timedelta(days=60)
         compute_date = compute_date.strftime('%Y-%m-%d')

@@ -7,9 +7,9 @@ import numpy as np
 
 # Actor / Policy Network / mu
 # decide what to do based on the current state, outputs action values
-class ActorNetwork(nn.Module):
+class ActorNetworkFC(nn.Module):
     def __init__(self, learning_rate, n_actions, fc1_dims, fc2_dims, fc3_dims, name):
-        super(ActorNetwork, self).__init__()
+        super(ActorNetworkFC, self).__init__()
         self.name = name
         self.n_actions = n_actions
         # self.input_size = (n_actions-1) * 4 + n_actions + 1

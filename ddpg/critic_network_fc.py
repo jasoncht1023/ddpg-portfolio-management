@@ -7,9 +7,9 @@ import os
 
 # Critic / Q-value Network / Q
 # evaluate state/action pairs
-class CriticNetwork(nn.Module):
+class CriticNetworkFC(nn.Module):
     def __init__(self, learning_rate, n_actions, fc1_dims, fc2_dims, fc3_dims, name):
-        super(CriticNetwork, self).__init__()
+        super(CriticNetworkFC, self).__init__()
         self.name = name
         # input_size = (n_actions-1) * 4 + n_actions + 1
         input_size = (n_actions - 1) * 7 + n_actions

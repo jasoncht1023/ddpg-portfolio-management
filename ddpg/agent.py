@@ -2,17 +2,17 @@ import torch as T
 import torch.nn.functional as F
 import torch.nn as nn
 import numpy as np
+import os
 from .ou_action_noise import OUActionNoise
 from .replay_buffer import ReplayBuffer
-# from .actor_network_fc import ActorNetwork
-# # from .actor_network_lstm import ActorNetwork
-from .actor_network_model_2 import ActorNetwork2
-from .actor_network_lstm_with_dropout import ActorNetwork
-# from .critic_network_fc import CriticNetwork
-# # from .critic_network_lstm import CriticNetwork
-from .critic_network_model_2 import CriticNetwork2
-from .critic_network_lstm_with_dropout import CriticNetwork
-import os
+
+from .actor_network_fc import ActorNetworkFC
+from .actor_network_lstm import ActorNetworkLSTM
+from .actor_network_amplifier import ActorNetworkAmplifier
+
+from .critic_network_fc import CriticNetworkFC
+from .critic_network_lstm import CriticNetworkLSTM
+from .critic_network_amplifier import CriticNetworkAmplifier
 
 # alpha and beta are the learning rate for actor and critic network, gamma is the discount factor for future reward
 # tau is the "update rate" of the target networks oarameters (param_target = tau * param_online + (1-tau) * param_target)
@@ -24,29 +24,29 @@ class Agent(object):
         self.batch_size = batch_size
         self.model = model
 
-        # self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
-        #                           fc1_dims=256, fc2_dims=128, fc3_dims=64, name="actor")
-        if model == 1:
-            self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, lstm_size=128, fc_size=84, name="actor")
-            self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, lstm_size=128, fc_size=84, name="critic")
-            self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, lstm_size=128, fc_size=84, name="target_actor")
-            self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, lstm_size=128, fc_size=84, name="target_critic")
-        elif model == 2:
-            self.actor = ActorNetwork2(learning_rate=alpha, n_actions=n_actions, name="actor")
-            self.critic = CriticNetwork2(learning_rate=beta, n_actions=n_actions, name="critic")
-            self.target_actor = ActorNetwork2(learning_rate=alpha, n_actions=n_actions, name="target_actor")
-            self.target_critic = CriticNetwork2(learning_rate=beta, n_actions=n_actions, name="target_critic")
-
-        # self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
-        #                             fc1_dims=256, fc2_dims=128, fc3_dims=64, name="critic")
-
-        # self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
-        #                                  fc1_dims=256, fc2_dims=128, fc3_dims=64, name="target_actor")
-
-        # self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, name="target_actor")
-
-        # self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
-        #                                    fc1_dims=256, fc2_dims=128, fc3_dims=64, name="target_critic")
+        if (model == 1):
+            self.actor = ActorNetworkFC(learning_rate=alpha, n_actions=n_actions, 
+                                        fc1_dims=256, fc2_dims=128, fc3_dims=64, name="actor")
+            self.critic = CriticNetworkFC(learning_rate=beta, n_actions=n_actions, 
+                                          fc1_dims=256, fc2_dims=128, fc3_dims=64, name="critic")
+            self.target_actor = ActorNetworkFC(learning_rate=alpha, n_actions=n_actions, 
+                                               fc1_dims=256, fc2_dims=128, fc3_dims=64, name="target_actor")
+            self.target_critic = CriticNetworkFC(learning_rate=beta, n_actions=n_actions, 
+                                                 fc1_dims=256, fc2_dims=128, fc3_dims=64, name="target_critic")
+        elif (model == 2):
+            self.actor = ActorNetworkLSTM(learning_rate=alpha, n_actions=n_actions, 
+                                          lstm_size=128, fc_size=84, name="actor")
+            self.critic = CriticNetworkLSTM(learning_rate=beta, n_actions=n_actions, 
+                                            lstm_size=128, fc_size=84, name="critic")
+            self.target_actor = ActorNetworkLSTM(learning_rate=alpha, n_actions=n_actions, 
+                                                 lstm_size=128, fc_size=84, name="target_actor")
+            self.target_critic = CriticNetworkLSTM(learning_rate=beta, n_actions=n_actions, 
+                                                   lstm_size=128, fc_size=84, name="target_critic")
+        elif (model == 3):
+            self.actor = ActorNetworkAmplifier(learning_rate=alpha, n_actions=n_actions, name="actor")
+            self.critic = CriticNetworkAmplifier(learning_rate=beta, n_actions=n_actions, name="critic")
+            self.target_actor = ActorNetworkAmplifier(learning_rate=alpha, n_actions=n_actions, name="target_actor")
+            self.target_critic = CriticNetworkAmplifier(learning_rate=beta, n_actions=n_actions, name="target_critic")
 
         self.noise = OUActionNoise(mu=np.zeros(n_actions), sigma=0.3, theta=0.2)
 
@@ -75,9 +75,10 @@ class Agent(object):
             else:
                 if (epsilon < 0.1):
                     mu += T.tensor(self.noise(), dtype=T.float).to(self.actor.device)       
-        if self.model == 1:
+                    
+        if (self.model == 1 or self.model == 2):
             mu = self.softmax(mu)                               # Ensure actions sum to 1
-        elif self.model == 2:
+        elif (self.model == 3):
             mu = T.tanh(mu) + 1                                 # Ensure actions are between 0 and 2      
         
         return mu.cpu().detach().numpy()   

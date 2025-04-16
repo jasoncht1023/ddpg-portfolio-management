@@ -1,16 +1,14 @@
 import torch as T
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
-import numpy as np
 import os
-from .actor_network_model_2 import ActorNetwork2
+from .actor_network_amplifier import ActorNetworkAmplifier
 
 # Critic / Q-value Network / Q
 # evaluate state/action pairs
-class CriticNetwork2(nn.Module):
+class CriticNetworkAmplifier(nn.Module):
     def __init__(self, learning_rate, n_actions, name, chkpt_dir="ddpg/trained_model"):
-        super(CriticNetwork2, self).__init__()
+        super(CriticNetworkAmplifier, self).__init__()
         self.name = name
         state_size = (n_actions-1) * 8 + 1
         self.relu = nn.ReLU()
@@ -68,16 +66,16 @@ class CriticNetwork2(nn.Module):
             self.load_state_dict(T.load(checkpoint_file))   
 
 # for testing only
-if __name__ == "__main__":
-    learning_rate = 1e-2
-    actor_net = ActorNetwork2(
-        learning_rate=learning_rate, n_actions=10, name="actor_model_test"
-    )
-    critic_net = CriticNetwork2(
-        learning_rate=learning_rate, n_actions=10, name="critic_model_test"
-    )
+# if __name__ == "__main__":
+#     learning_rate = 1e-2
+#     actor_net = ActorNetwork2(
+#         learning_rate=learning_rate, n_actions=10, name="actor_model_test"
+#     )
+#     critic_net = CriticNetwork2(
+#         learning_rate=learning_rate, n_actions=10, name="critic_model_test"
+#     )
 
-    state_example = T.randn(4, 10, 10, 10).to(actor_net.device)
-    action = actor_net(state_example)
-    action_state_value = critic_net(state_example, action)
-    print(action_state_value)
+#     state_example = T.randn(4, 10, 10, 10).to(actor_net.device)
+#     action = actor_net(state_example)
+#     action_state_value = critic_net(state_example, action)
+#     print(action_state_value)

@@ -1,15 +1,13 @@
 import torch as T
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 import os
-import numpy as np
 
 # Actor / Policy Network / mu
 # decide what to do based on the current state, outputs action values
-class ActorNetwork2(nn.Module):
+class ActorNetworkAmplifier(nn.Module):
     def __init__(self, learning_rate, n_actions, name, chkpt_dir="ddpg/trained_model"):
-        super(ActorNetwork2, self).__init__()
+        super(ActorNetworkAmplifier, self).__init__()
         self.name = name
         self.n_actions = n_actions
         self.input_size = (n_actions-1) * 8 + 1
@@ -65,31 +63,31 @@ class ActorNetwork2(nn.Module):
             self.load_state_dict(T.load(checkpoint_file))
 
 # for testing only
-if __name__ == "__main__":
-    n_actions = 10
-    policy_net = ActorNetwork2(
-        learning_rate=1e-2, n_actions=n_actions, name="model name"
-    )
-    criterion = nn.CrossEntropyLoss()
-    target = T.Tensor(
-        [
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0,
-        ]
-    ).to(policy_net.device)
-    state_example = T.randn(4, 10, 10, 10).to(policy_net.device)
-    for i in range(40):
-        policy_net.optimizer.zero_grad()
-        action = policy_net(state_example)
-        loss = criterion(action, target)
-        loss.backward()
-        policy_net.optimizer.step()
-    print(action)
+# if __name__ == "__main__":
+#     n_actions = 10
+#     policy_net = ActorNetwork2(
+#         learning_rate=1e-2, n_actions=n_actions, name="model name"
+#     )
+#     criterion = nn.CrossEntropyLoss()
+#     target = T.Tensor(
+#         [
+#             0,
+#             0,
+#             0,
+#             0,
+#             0,
+#             1,
+#             0,
+#             0,
+#             0,
+#             0,
+#         ]
+#     ).to(policy_net.device)
+#     state_example = T.randn(4, 10, 10, 10).to(policy_net.device)
+#     for i in range(40):
+#         policy_net.optimizer.zero_grad()
+#         action = policy_net(state_example)
+#         loss = criterion(action, target)
+#         loss.backward()
+#         policy_net.optimizer.step()
+#     print(action)

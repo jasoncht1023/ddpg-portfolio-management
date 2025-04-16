@@ -3,7 +3,7 @@ from ddpg.agent import Agent
 import numpy as np
 # from env.trading_simulator import TradingSimulator
 from env.trading_simulator_v2 import TradingSimulator
-from env.trading_simulator_model_2 import TradingSimulator2
+from env.trading_simulator_amplifier import TradingSimulatorAmplifier
 import os
 from scipy.optimize import minimize
 import utils
@@ -29,11 +29,11 @@ assets = [
     # "HON",
     # "CRM",
     "AAPL",
-    # "INTC",
-    # "TRV",
-    # "BA",
-    # "IBM",
-    # "UNH",
+    "INTC",
+    "TRV",
+    "BA",
+    "IBM",
+    "UNH",
     # "CAT",
     # "JNJ",
     # "VZ",
@@ -45,7 +45,7 @@ assets = [
     # "WBA",
     # "KO",
     # "MRK",
-    "WMT",
+    # "WMT",
     # "MSFT",
     # "DIS"
     # "AMD",
@@ -53,8 +53,8 @@ assets = [
     # "AMD",
     # "BA",
     # "SBUX",
-    "TLT",
-    "GLD",
+    # "TLT",
+    # "GLD",
     # "NKE", 
     # "CVX"
 ]
@@ -64,10 +64,10 @@ principal = 1000000
 num_episode = 500
 
 # Either Training mode or Evaluation mode should be run at a time
-is_training_mode = False
+is_training_mode = True
 
-# Choose which model to use
-model = 2
+# Choose which model to use {1: Fully Connected, 2: LSTM, 3: LSTM Amplifier}
+model = 3
 
 # Training settings, 1: mode will be trained; 0: mode will not be run
 training_mode = {
@@ -79,10 +79,10 @@ training_mode = {
 testing_mode = {
     "ddpg": 1,
     "GOD": 0,
-    "all-in last day best return": 1,
+    "all_in_last_day_best_return": 1,
     "uniform_with_rebalance": 1,
     "uniform_without_rebalance": 1,
-    "basic_MPT": 1
+    "MPT": 1
 }
 
 # Evaluation metrics
@@ -92,23 +92,22 @@ actor_loss_history = []
 critic_loss_history = []
 
 # Trading environment initialization (2014-2021)
-if model == 1:
+if (model == 1 or model == 2):
     env = TradingSimulator(principal=principal, assets=assets, start_date="2022-01-01", end_date="2024-12-31", 
-                       rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
-elif model == 2:
-    env = TradingSimulator2(principal=principal, assets=assets, start_date="2022-01-01", end_date="2024-12-31", 
-                       rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
+                           rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
+elif (model == 3):
+    env = TradingSimulatorAmplifier(principal=principal, assets=assets, start_date="2022-01-01", end_date="2024-12-31", 
+                                    rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
-# Default: alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
-# agent = Agent(alpha=0.0001, beta=0.005, gamma=0.99, tau=0.03, 
-#               input_dims=[len(assets) * 5 + 2], batch_size=128, n_actions=len(assets)+1)
-if model == 1:
+if (model == 1 or model == 2):
     n_actions = len(assets) + 1
-elif model == 2:
+    input_dims=[len(assets) * 8 + 1]
+elif (model == 3):
     n_actions = len(assets)
-agent = Agent(alpha=0.0001, beta=0.0005, gamma=0.99, tau=0.03, 
-              input_dims=[len(assets) * 11 + 1], batch_size=128, n_actions=n_actions,
-              model=model)
+    input_dims=[len(assets) * 11 + 1]
+
+agent = Agent(alpha=0.0001, beta=0.0005, gamma=0.99, tau=0.03, input_dims=input_dims, 
+              batch_size=128, n_actions=n_actions, model=model)
 
 # Training algorithms:
 if (is_training_mode == True):
@@ -141,7 +140,6 @@ if (is_training_mode == True):
                     total_critic_loss += critic_loss
                     learning_count += 1       
                 total_return += reward
-                # print("reward:", reward)
                 observation = new_state
             
             # Append the metrics after a training episode is ended
@@ -173,7 +171,7 @@ if (is_training_mode == True):
 # Testing algorithms:
 else:
     if (testing_mode["ddpg"] == 1):
-        agent.load_models("trained_model")
+        agent.load_models("trained_model_175")
         np.random.seed(0)
         return_history["ddpg"] = []
 
@@ -220,8 +218,8 @@ else:
 
         utils.print_eval_results(env, total_return)
 
-    if (testing_mode["all-in last day best return"] == 1):
-        return_history["all-in last day best return"] = []
+    if (testing_mode["all_in_last_day_best_return"] == 1):
+        return_history["all_in_last_day_best_return"] = []
 
         print("--------------------all-in last day best return--------------------")
         observation = env.restart()
@@ -240,7 +238,7 @@ else:
                 action[-1] = 1
             new_state, reward, done = env.step(action)
             total_return += reward
-            return_history["all-in last day best return"].append(total_return)
+            return_history["all_in_last_day_best_return"].append(total_return)
 
         utils.print_eval_results(env, total_return)
 
@@ -280,8 +278,8 @@ else:
 
         utils.print_eval_results(env, total_return)
 
-    if (testing_mode["basic_MPT"] == 1):
-        return_history["basic_MPT"] = []
+    if (testing_mode["MPT"] == 1):
+        return_history["MPT"] = []
         print("--------------------Efficient Frontier Tangent Portfolio--------------------")
         observation = env.restart()
         done = 0
@@ -326,7 +324,7 @@ else:
                 action = list(weights) + [0]
             new_state, reward, done = env.step(action)
             total_return += reward
-            return_history["basic_MPT"].append(total_return)
+            return_history["MPT"].append(total_return)
         
         utils.print_eval_results(env, total_return)
 

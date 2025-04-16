@@ -5,19 +5,16 @@ import os
 
 # Actor / Policy Network / mu
 # decide what to do based on the current state, outputs action values
-class ActorNetwork(nn.Module):   
+class ActorNetworkLSTM(nn.Module):   
     def __init__(self, learning_rate, n_actions, lstm_size, fc_size, name):
-        super(ActorNetwork, self).__init__()
+        super(ActorNetworkLSTM, self).__init__()
         self.name = name
-        input_size = (n_actions - 1) * 10 + n_actions
+        input_size = (n_actions - 1) * 7 + n_actions
         # input_size = (n_actions-1) * 4 + n_actions + 1
         self.relu = nn.ReLU()
 
-        self.lstm1 = nn.LSTM(input_size, lstm_size)
-        self.__init_lstm(self.lstm1)
-
-        self.lstm2 = nn.LSTM(lstm_size, lstm_size)
-        self.__init_lstm(self.lstm2)
+        self.lstm = nn.LSTM(input_size=input_size, hidden_size=lstm_size, num_layers=2, dropout=0.2)
+        self.__init_lstm(self.lstm)
 
         self.fc = nn.Linear(lstm_size, fc_size)
         self.bn = nn.LayerNorm(fc_size)
@@ -36,9 +33,8 @@ class ActorNetwork(nn.Module):
 
     def forward(self, x):
         x = x.unsqueeze(0)
-        output, (final_hidden_state, final_cell_state) = self.lstm1(x)
-        output, (final_hidden_state, final_cell_state) = self.lstm2(final_hidden_state)
-        x = final_hidden_state.squeeze(0)
+        output, (final_hidden_state, final_cell_state) = self.lstm(x)
+        x = final_hidden_state[-1]
         x = self.fc(x)
         x = self.bn(x)
         x = self.relu(x)
