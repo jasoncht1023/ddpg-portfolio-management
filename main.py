@@ -3,6 +3,7 @@ from ddpg.agent import Agent
 import numpy as np
 # from env.trading_simulator import TradingSimulator
 from env.trading_simulator_v2 import TradingSimulator
+from env.trading_simulator_model_2 import TradingSimulator2
 import os
 from scipy.optimize import minimize
 import utils
@@ -65,6 +66,9 @@ num_episode = 500
 # Either Training mode or Evaluation mode should be run at a time
 is_training_mode = False
 
+# Choose which model to use
+model = 2
+
 # Training settings, 1: mode will be trained; 0: mode will not be run
 training_mode = {
     "ddpg": 1
@@ -88,14 +92,23 @@ actor_loss_history = []
 critic_loss_history = []
 
 # Trading environment initialization (2014-2021)
-env = TradingSimulator(principal=principal, assets=assets, start_date="2022-01-01", end_date="2024-12-31", 
+if model == 1:
+    env = TradingSimulator(principal=principal, assets=assets, start_date="2022-01-01", end_date="2024-12-31", 
+                       rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
+elif model == 2:
+    env = TradingSimulator2(principal=principal, assets=assets, start_date="2022-01-01", end_date="2024-12-31", 
                        rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 # Default: alpha=0.000025, beta=0.00025, gamma=0.99, tau=0.001, batch_size=64
 # agent = Agent(alpha=0.0001, beta=0.005, gamma=0.99, tau=0.03, 
 #               input_dims=[len(assets) * 5 + 2], batch_size=128, n_actions=len(assets)+1)
+if model == 1:
+    n_actions = len(assets) + 1
+elif model == 2:
+    n_actions = len(assets)
 agent = Agent(alpha=0.0001, beta=0.0005, gamma=0.99, tau=0.03, 
-              input_dims=[len(assets) * 11 + 1], batch_size=128, n_actions=len(assets)+1)
+              input_dims=[len(assets) * 11 + 1], batch_size=128, n_actions=n_actions,
+              model=model)
 
 # Training algorithms:
 if (is_training_mode == True):
@@ -298,7 +311,7 @@ else:
 
         while not done:
             action = []
-            window = 5
+            window = 30
             if env.time > 3:
                 t = max(env.time - window, 0)
                 r = env.close_price[t : env.time].pct_change().dropna()

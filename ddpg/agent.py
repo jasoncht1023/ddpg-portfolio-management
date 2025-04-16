@@ -5,41 +5,44 @@ import numpy as np
 from .ou_action_noise import OUActionNoise
 from .replay_buffer import ReplayBuffer
 # from .actor_network_fc import ActorNetwork
-from .actor_network_lstm import ActorNetwork
+# from .actor_network_lstm import ActorNetwork
+from .actor_network_model_2 import ActorNetwork
 # from .actor_network_lstm_with_dropout import ActorNetwork
 # from .critic_network_fc import CriticNetwork
-from .critic_network_lstm import CriticNetwork
+# from .critic_network_lstm import CriticNetwork
+from .critic_network_model_2 import CriticNetwork
 # from .critic_network_lstm_with_dropout import CriticNetwork
 import os
 
 # alpha and beta are the learning rate for actor and critic network, gamma is the discount factor for future reward
 # tau is the "update rate" of the target networks oarameters (param_target = tau * param_online + (1-tau) * param_target)
 class Agent(object):
-    def __init__(self, alpha, beta, input_dims, tau, gamma, n_actions, max_size=300000, batch_size=64):
+    def __init__(self, alpha, beta, input_dims, tau, gamma, n_actions, model=1, max_size=300000, batch_size=64):
         self.gamma = gamma
         self.tau = tau
         self.memory = ReplayBuffer(max_size, input_dims, n_actions)
         self.batch_size = batch_size
+        self.model = model
 
         # self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
         #                           fc1_dims=256, fc2_dims=128, fc3_dims=64, name="actor")
 
-        self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, lstm_size=100, fc_size=50, name="actor")
+        self.actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, name="actor")
 
         # self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
         #                             fc1_dims=256, fc2_dims=128, fc3_dims=64, name="critic")
 
-        self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, lstm_size=100, fc_size=50, name="critic")
+        self.critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, name="critic")
 
         # self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, 
         #                                  fc1_dims=256, fc2_dims=128, fc3_dims=64, name="target_actor")
 
-        self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, lstm_size=100, fc_size=50, name="target_actor")
+        self.target_actor = ActorNetwork(learning_rate=alpha, n_actions=n_actions, name="target_actor")
 
         # self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, 
         #                                    fc1_dims=256, fc2_dims=128, fc3_dims=64, name="target_critic")
 
-        self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, lstm_size=100, fc_size=50, name="target_critic")
+        self.target_critic = CriticNetwork(learning_rate=beta, n_actions=n_actions, name="target_critic")
 
         self.noise = OUActionNoise(mu=np.zeros(n_actions), sigma=0.3, theta=0.2)
 
@@ -68,8 +71,10 @@ class Agent(object):
             else:
                 if (epsilon < 0.1):
                     mu += T.tensor(self.noise(), dtype=T.float).to(self.actor.device)       
-
-        mu = self.softmax(mu)                               # Ensure actions sum to 1      
+        if self.model == 1:
+            mu = self.softmax(mu)                               # Ensure actions sum to 1
+        elif self.model == 2:
+            mu = T.tanh(mu) + 1                                 # Ensure actions are between 0 and 2      
         
         return mu.cpu().detach().numpy()   
 
