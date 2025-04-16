@@ -4,13 +4,13 @@ import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 import os
-from .actor_network_model_2 import ActorNetwork
+from .actor_network_model_2 import ActorNetwork2
 
 # Critic / Q-value Network / Q
 # evaluate state/action pairs
-class CriticNetwork(nn.Module):
+class CriticNetwork2(nn.Module):
     def __init__(self, learning_rate, n_actions, name, chkpt_dir="ddpg/trained_model"):
-        super(CriticNetwork, self).__init__()
+        super(CriticNetwork2, self).__init__()
         self.name = name
         state_size = (n_actions-1) * 8 + 1
         self.relu = nn.ReLU()
@@ -70,10 +70,10 @@ class CriticNetwork(nn.Module):
 # for testing only
 if __name__ == "__main__":
     learning_rate = 1e-2
-    actor_net = ActorNetwork(
+    actor_net = ActorNetwork2(
         learning_rate=learning_rate, n_actions=10, name="actor_model_test"
     )
-    critic_net = CriticNetwork(
+    critic_net = CriticNetwork2(
         learning_rate=learning_rate, n_actions=10, name="critic_model_test"
     )
 

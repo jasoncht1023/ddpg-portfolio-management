@@ -7,9 +7,9 @@ import numpy as np
 
 # Actor / Policy Network / mu
 # decide what to do based on the current state, outputs action values
-class ActorNetwork(nn.Module):
+class ActorNetwork2(nn.Module):
     def __init__(self, learning_rate, n_actions, name, chkpt_dir="ddpg/trained_model"):
-        super(ActorNetwork, self).__init__()
+        super(ActorNetwork2, self).__init__()
         self.name = name
         self.n_actions = n_actions
         self.input_size = (n_actions-1) * 8 + 1
@@ -67,7 +67,7 @@ class ActorNetwork(nn.Module):
 # for testing only
 if __name__ == "__main__":
     n_actions = 10
-    policy_net = ActorNetwork(
+    policy_net = ActorNetwork2(
         learning_rate=1e-2, n_actions=n_actions, name="model name"
     )
     criterion = nn.CrossEntropyLoss()
