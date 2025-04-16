@@ -21,23 +21,20 @@ assets = [
     # "BMY",
     # "MMM",
     # "GS",
-    # "NKE",
     # "AXP",
     # "HD",
     # "PG",
     # "AMGN",
     # "HON",
     # "CRM",
-    "AAPL",
-    "INTC",
-    "TRV",
-    "BA",
-    "IBM",
-    "UNH",
+    # "AAPL",
+    # "INTC",
+    # "TRV",
+    # "IBM",
+    # "UNH",
     # "CAT",
     # "JNJ",
     # "VZ",
-    # "CVX",
     # "JPM",
     # "V",
     # "CSCO",
@@ -48,15 +45,14 @@ assets = [
     # "WMT",
     # "MSFT",
     # "DIS"
-    # "AMD",
     # "ADDYY",
     # "AMD",
-    # "BA",
-    # "SBUX",
-    # "TLT",
-    # "GLD",
-    # "NKE", 
-    # "CVX"
+    "BA",
+    "SBUX",
+    "TLT",
+    "GLD",
+    "NKE", 
+    "CVX"
 ]
 rebalance_window = 1
 tx_fee_per_share = 0.005
@@ -67,7 +63,7 @@ num_episode = 500
 is_training_mode = True
 
 # Choose which model to use {1: Fully Connected, 2: LSTM, 3: LSTM Amplifier}
-model = 3
+model = 2
 
 # Training settings, 1: mode will be trained; 0: mode will not be run
 training_mode = {
@@ -101,12 +97,10 @@ elif (model == 3):
 
 if (model == 1 or model == 2):
     n_actions = len(assets) + 1
-    input_dims=[len(assets) * 8 + 1]
 elif (model == 3):
     n_actions = len(assets)
-    input_dims=[len(assets) * 11 + 1]
 
-agent = Agent(alpha=0.0001, beta=0.0005, gamma=0.99, tau=0.03, input_dims=input_dims, 
+agent = Agent(alpha=0.0001, beta=0.0005, gamma=0.99, tau=0.03, input_dims=[len(assets) * 8 + 1], 
               batch_size=128, n_actions=n_actions, model=model)
 
 # Training algorithms:
@@ -171,7 +165,7 @@ if (is_training_mode == True):
 # Testing algorithms:
 else:
     if (testing_mode["ddpg"] == 1):
-        agent.load_models("trained_model_175")
+        agent.load_models("trained_model")
         np.random.seed(0)
         return_history["ddpg"] = []
 
