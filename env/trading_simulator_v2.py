@@ -337,6 +337,11 @@ class TradingSimulator:
         # Adjust the weighting of each asset in the portfolio based on the new portfolio value
         # An empty action array means skipping the portfolio rebalance, not applicable in RL algorithms
         if (len(action) != 0):
+            if (len(action) == len(self.portfolio)-1):
+                tangent_portfolio = self.tangent_portfolios[self.time]
+                amp = np.multiply(action, tangent_portfolio)
+                portfolio = amp / np.sum(amp)
+                action = list(portfolio) + [0]
             for i in range(len(self.portfolio)):
                 weight_adjusted_stock_value = new_value * action[i]
                 self.portfolio[i].set_weighting(action[i])
