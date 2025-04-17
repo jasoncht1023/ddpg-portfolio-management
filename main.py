@@ -73,13 +73,13 @@ training_mode = {
 # Testing settings, 1: mode will be evaluated; 0: mode will not be run
 # RL models must have a trained model to be evaluated
 testing_mode = {
-    "ddpg": 0,
+    "ddpg": 1,
     "GOD": 0,
     "all_in_last_day_best_return": 1,
+    "follow_last_day_best_return": 1,
     "uniform_with_rebalance": 1,
     "uniform_without_rebalance": 1,
     "MPT": 1,
-    "follow_last_day_best_return": 1,
 }
 
 # Evaluation metrics
@@ -101,7 +101,7 @@ if (model == 1 or model == 2):
 elif (model == 3):
     n_actions = len(assets)
 
-agent = Agent(alpha=0.0001, beta=0.0005, gamma=0.99, tau=0.03, input_dims=[len(assets) * 8 + 1], 
+agent = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.09, input_dims=[len(assets) * 8 + 1], 
               batch_size=128, n_actions=n_actions, model=model)
 
 # Training algorithms:
@@ -222,13 +222,13 @@ else:
         total_return = 0
         n = len(assets)
 
-        prev_action = [1/(len(assets))] * (len(assets)) + [0]
+        prev_action = [1/(len(assets)+1)] * (len(assets)+1)
 
         while not done:
             action = prev_action.copy()
 
-            curr_close_price = np.array(env.close_price.iloc[env.time])
-            prev_close_price = np.array(env.close_price.iloc[env.time - 1])
+            curr_close_price = np.append(np.array(env.close_price.iloc[env.time]), 1)
+            prev_close_price = np.append(np.array(env.close_price.iloc[env.time - 1]), 1)
 
             logr = np.log(np.divide(prev_close_price, curr_close_price))        # logarithmic returns
 
