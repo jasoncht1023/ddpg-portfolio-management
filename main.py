@@ -44,9 +44,9 @@ assets = [
     # "MRK",
     # "WMT",
     # "MSFT",
-    # "DIS"
+    # "DIS",
     # "ADDYY",
-    # "AMD",
+    "AMD",
     "BA",
     "SBUX",
     "TLT",
@@ -60,7 +60,7 @@ principal = 1000000
 num_episode = 500
 
 # Either Training mode or Evaluation mode should be run at a time
-is_training_mode = True
+is_training_mode = False
 
 # Choose which model to use {1: Fully Connected, 2: LSTM, 3: LSTM Amplifier}
 model = 2
@@ -76,9 +76,10 @@ testing_mode = {
     "ddpg": 1,
     "GOD": 0,
     "all_in_last_day_best_return": 1,
+    "follow_last_day_best_return": 1,
     "uniform_with_rebalance": 1,
     "uniform_without_rebalance": 1,
-    "MPT": 1
+    "MPT": 1,
 }
 
 # Evaluation metrics
@@ -89,7 +90,7 @@ critic_loss_history = []
 
 # Trading environment initialization (2014-2021)
 if (model == 1 or model == 2):
-    env = TradingSimulator(principal=principal, assets=assets, start_date="2022-01-01", end_date="2024-12-31", 
+    env = TradingSimulator(principal=principal, assets=assets, start_date="2018-01-01", end_date="2024-12-31", 
                            rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 elif (model == 3):
     env = TradingSimulatorAmplifier(principal=principal, assets=assets, start_date="2022-01-01", end_date="2024-12-31", 
@@ -100,7 +101,7 @@ if (model == 1 or model == 2):
 elif (model == 3):
     n_actions = len(assets)
 
-agent = Agent(alpha=0.0001, beta=0.0005, gamma=0.99, tau=0.03, input_dims=[len(assets) * 8 + 1], 
+agent = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.09, input_dims=[len(assets) * 8 + 1], 
               batch_size=128, n_actions=n_actions, model=model)
 
 # Training algorithms:
@@ -209,6 +210,49 @@ else:
             new_state, reward, done = env.step(action)
             total_return += reward
             return_history["GOD"].append(total_return)
+
+        utils.print_eval_results(env, total_return)
+
+    if (testing_mode["follow_last_day_best_return"] == 1):
+        return_history["follow_last_day_best_return"] = []
+
+        print("--------------------follow last day best return--------------------")
+        observation = env.restart()
+        done = 0
+        total_return = 0
+        n = len(assets)
+
+        prev_action = [1/(len(assets)+1)] * (len(assets)+1)
+
+        while not done:
+            action = prev_action.copy()
+
+            curr_close_price = np.append(np.array(env.close_price.iloc[env.time]), 1)
+            prev_close_price = np.append(np.array(env.close_price.iloc[env.time - 1]), 1)
+
+            logr = np.log(np.divide(prev_close_price, curr_close_price))        # logarithmic returns
+
+            # Increase the asset with the maximum logarithmic return
+            max_index = np.argmax(logr)
+            action[max_index] += 0.1
+
+            total_decrease_needed = 0.1
+            sorted_indices = np.argsort(logr)
+
+            for idx in sorted_indices:
+                amount_available = action[idx]
+                subtraction = min(amount_available, total_decrease_needed)
+                action[idx] -= subtraction
+                total_decrease_needed -= subtraction
+
+                if (total_decrease_needed == 0):
+                    break
+
+            prev_action = action
+            
+            new_state, reward, done = env.step(action)
+            total_return += reward
+            return_history["follow_last_day_best_return"].append(total_return)
 
         utils.print_eval_results(env, total_return)
 
