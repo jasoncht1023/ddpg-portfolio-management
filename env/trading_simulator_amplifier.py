@@ -101,7 +101,7 @@ class TradingSimulatorAmplifier:
         
         self.trading_dates = close_data["Date"].dt.date.astype(str).tolist()[1:]
         # self.rebalance_dates = [self.trading_dates[i] for i in range(len(self.trading_dates)) if (i+1) % rebalance_window == 0]
-        mpt_window = 10
+        mpt_window = 30
 
         rolling_cov = numpy_rolling_cov(returns.to_numpy(), mpt_window)[-len(self.trading_dates)-1:]
         rolling_exp_returns = returns.rolling(mpt_window).mean()[-len(self.trading_dates)-1:]
