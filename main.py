@@ -74,21 +74,23 @@ training_mode = {
 # RL models must have a trained model to be evaluated
 testing_mode = {
     "ddpg": 1,
-    "GOD": 0,
+    "god": 0,
     "all_in_last_day_best_return": 1,
     "follow_last_day_best_return": 1,
     "uniform_with_rebalance": 1,
     "uniform_without_rebalance": 1,
-    "MPT": 1,
+    "mpt": 1,
 }
 
 # Evaluation metrics
 return_history = {}
+yearly_return_rate_history = {}
+monthly_return_rate_history = {}
 sharpe_ratio_history = {}
 actor_loss_history = []
 critic_loss_history = []
 
-# Trading environment initialization (2014-2021)
+# Trading environment initialization (2009-2017)
 if (model == 1 or model == 2):
     env = TradingSimulator(principal=principal, assets=assets, start_date="2018-01-01", end_date="2024-12-31", 
                            rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
@@ -184,12 +186,14 @@ else:
             observation = new_state
             return_history["ddpg"].append(total_return)
 
+        yearly_return_rate_history["ddpg"], _ = env.yearly_return_history()
+        monthly_return_rate_history["ddpg"], _ = env.monthly_return_history()
         utils.print_eval_results(env, total_return)
 
-    if (testing_mode["GOD"] == 1):
-        return_history["GOD"] = []
+    if (testing_mode["god"] == 1):
+        return_history["god"] = []
 
-        print("--------------------GOD--------------------")
+        print("--------------------God--------------------")
         observation = env.restart()
         done = 0
         total_return = 0
@@ -209,8 +213,10 @@ else:
                 action[-1] = 1
             new_state, reward, done = env.step(action)
             total_return += reward
-            return_history["GOD"].append(total_return)
+            return_history["god"].append(total_return)
 
+        yearly_return_rate_history["god"], _ = env.yearly_return_history()
+        monthly_return_rate_history["god"], _ = env.monthly_return_history()
         utils.print_eval_results(env, total_return)
 
     if (testing_mode["follow_last_day_best_return"] == 1):
@@ -254,12 +260,14 @@ else:
             total_return += reward
             return_history["follow_last_day_best_return"].append(total_return)
 
+        yearly_return_rate_history["follow_last_day_best_return"], _ = env.yearly_return_history()
+        monthly_return_rate_history["follow_last_day_best_return"], _ = env.monthly_return_history()
         utils.print_eval_results(env, total_return)
 
     if (testing_mode["all_in_last_day_best_return"] == 1):
         return_history["all_in_last_day_best_return"] = []
 
-        print("--------------------all-in last day best return--------------------")
+        print("--------------------All-in last day best return--------------------")
         observation = env.restart()
         done = 0
         total_return = 0
@@ -278,6 +286,8 @@ else:
             total_return += reward
             return_history["all_in_last_day_best_return"].append(total_return)
 
+        yearly_return_rate_history["all_in_last_day_best_return"], _ = env.yearly_return_history()
+        monthly_return_rate_history["all_in_last_day_best_return"], _ = env.monthly_return_history()
         utils.print_eval_results(env, total_return)
 
     if (testing_mode["uniform_with_rebalance"] == 1):
@@ -294,6 +304,8 @@ else:
             total_return += reward
             return_history["uniform_with_rebalance"].append(total_return)
 
+        yearly_return_rate_history["uniform_with_rebalance"], _ = env.yearly_return_history()
+        monthly_return_rate_history["uniform_with_rebalance"], _ = env.monthly_return_history()
         utils.print_eval_results(env, total_return)
 
     if (testing_mode["uniform_without_rebalance"] == 1):
@@ -314,10 +326,12 @@ else:
             total_return += reward
             return_history["uniform_without_rebalance"].append(total_return)
 
+        yearly_return_rate_history["uniform_without_rebalance"], _ = env.yearly_return_history()
+        monthly_return_rate_history["uniform_without_rebalance"], _ = env.monthly_return_history()
         utils.print_eval_results(env, total_return)
 
-    if (testing_mode["MPT"] == 1):
-        return_history["MPT"] = []
+    if (testing_mode["mpt"] == 1):
+        return_history["mpt"] = []
         print("--------------------Efficient Frontier Tangent Portfolio--------------------")
         observation = env.restart()
         done = 0
@@ -362,8 +376,10 @@ else:
                 action = list(weights) + [0]
             new_state, reward, done = env.step(action)
             total_return += reward
-            return_history["MPT"].append(total_return)
-        
+            return_history["mpt"].append(total_return)
+
+        yearly_return_rate_history["mpt"], _ = env.yearly_return_history()
+        monthly_return_rate_history["mpt"], _ = env.monthly_return_history()        
         utils.print_eval_results(env, total_return)
 
 if not os.path.isdir("evaluation"): 
@@ -377,4 +393,4 @@ if (is_training_mode == True):
     utils.plot_mean_actor_loss_over_episodes(episode_axis, actor_loss_history, "ddpg")
     utils.plot_mean_critic_loss_over_episodes(episode_axis, critic_loss_history, "ddpg")
 else:
-    utils.plot_testing_return(env, testing_mode, return_history)
+    utils.plot_testing_return(env, testing_mode, return_history, yearly_return_rate_history, monthly_return_rate_history)

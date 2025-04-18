@@ -172,7 +172,6 @@ class TradingSimulator:
         return 100 * (1 - 1/(1+avg_gain/avg_loss))
     
     def calculate_tangent_portfolio(self, expected_returns, covariance_matrix, risk_free_rate):
-
         n = len(expected_returns)
         
         def objective_function(weights):
@@ -202,12 +201,7 @@ class TradingSimulator:
         end_value = periood_return_history.iloc[-1] 
         return (end_value - start_value) / start_value * 100 
     
-    def sharpe_ratio(self):     
-        def annual_return(yearly_return_history):
-            start_value = yearly_return_history.iloc[0] 
-            end_value = yearly_return_history.iloc[-1] 
-            return (end_value - start_value) / start_value
-        
+    def sharpe_ratio(self):            
         # Load the annual risk free rates
         risk_free_rates = pd.read_csv('env/30y-treasury-rate.csv')
         risk_free_rates['date'] = pd.to_datetime(risk_free_rates['date']).dt.year
@@ -215,7 +209,7 @@ class TradingSimulator:
 
         # Compute the return rates
         portfolio_history = pd.DataFrame({"date": pd.to_datetime(self.trading_dates), "value": self.value_history})
-        annual_return_rates = portfolio_history.groupby(portfolio_history['date'].dt.year)['value'].apply(annual_return).reset_index()
+        annual_return_rates = portfolio_history.groupby(portfolio_history['date'].dt.year)['value'].apply(self.period_return).reset_index()
         annual_return_rates.columns = ["year", "return_rate"]
 
         # Combine the risk free rates and return rates
@@ -249,17 +243,19 @@ class TradingSimulator:
                 drawdowns.append(drawdown)
         return max(drawdowns)
     
-    def avg_yearly_return(self):
+    def yearly_return_history(self):
         portfolio_history = pd.DataFrame({"date": pd.to_datetime(self.trading_dates), "value": self.value_history})
         annual_return_rates = portfolio_history.groupby(portfolio_history['date'].dt.year)['value'].apply(self.period_return).reset_index()
         annual_return_rates.columns = ["year", "return_rate"]
-        return annual_return_rates["return_rate"].mean()
+        return annual_return_rates["return_rate"], annual_return_rates["year"]
     
-    def avg_monthly_return(self):
+    def monthly_return_history(self):
         portfolio_history = pd.DataFrame({"date": pd.to_datetime(self.trading_dates), "value": self.value_history})
         monthly_return_rates = portfolio_history.groupby(portfolio_history['date'].dt.to_period("M"))['value'].apply(self.period_return).reset_index()
         monthly_return_rates.columns = ["month", "return_rate"]
-        return monthly_return_rates["return_rate"].mean()
+        monthly_return_rates['month'] = monthly_return_rates['month'].astype(str)
+
+        return monthly_return_rates["return_rate"], monthly_return_rates["month"]
     
     def total_portfolio_value(self):
         return self.portfolio_value
