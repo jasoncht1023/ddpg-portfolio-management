@@ -1,8 +1,7 @@
 import pandas as pd
 from ddpg.agent import Agent
 import numpy as np
-# from env.trading_simulator import TradingSimulator
-from env.trading_simulator_v2 import TradingSimulator
+from env.trading_simulator import TradingSimulator
 from env.trading_simulator_amplifier import TradingSimulatorAmplifier
 import os
 from scipy.optimize import minimize
