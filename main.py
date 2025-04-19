@@ -2,7 +2,6 @@ import pandas as pd
 from ddpg.agent import Agent
 import numpy as np
 from env.trading_simulator import TradingSimulator
-from env.trading_simulator_amplifier import TradingSimulatorAmplifier
 import os
 from scipy.optimize import minimize
 import utils
@@ -17,7 +16,6 @@ assets = [
     # "GOLD",
     # "FDP",
     # "NEM",
-    # "BMY",
     # "MMM",
     # "GS",
     # "AXP",
@@ -27,31 +25,41 @@ assets = [
     # "HON",
     # "CRM",
     # "AAPL",
-    # "INTC",
     # "TRV",
     # "IBM",
     # "UNH",
     # "CAT",
     # "JNJ",
-    # "VZ",
     # "JPM",
     # "V",
-    # "CSCO",
     # "MCD",
     # "WBA",
     # "KO",
-    # "MRK",
     # "WMT",
     # "MSFT",
     # "DIS",
     # "ADDYY",
-    "AMD",
-    "BA",
-    "SBUX",
-    "TLT",
-    "GLD",
-    "NKE", 
-    "CVX"
+    # "AMD",
+    # "BA",
+    # "SBUX",
+    # "TLT",
+    # "GLD",
+    # "NKE", 
+    # "CVX"
+    "CSCO", 
+    "BMY", 
+    "BAC", 
+    "TGT", 
+    "VZ", 
+    "GE", 
+    "CL", 
+    "CVX", 
+    "DUK", 
+    "PLD", 
+    "LIN", 
+    "INTC", 
+    "MRK", 
+    "WFC",
 ]
 rebalance_window = 1
 tx_fee_per_share = 0.005
@@ -63,6 +71,8 @@ is_training_mode = False
 
 # Choose which model to use {1: Fully Connected, 2: LSTM, 3: LSTM Amplifier}
 model = 2
+
+is_saved_models_zipped = False
 
 # Training settings, 1: mode will be trained; 0: mode will not be run
 training_mode = {
@@ -89,13 +99,9 @@ sharpe_ratio_history = {}
 actor_loss_history = []
 critic_loss_history = []
 
-# Trading environment initialization (2009-2017)
-if (model == 1 or model == 2):
-    env = TradingSimulator(principal=principal, assets=assets, start_date="2018-01-01", end_date="2024-12-31", 
-                           rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
-elif (model == 3):
-    env = TradingSimulatorAmplifier(principal=principal, assets=assets, start_date="2022-01-01", end_date="2024-12-31", 
-                                    rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
+# Trading environment initialization (Trained: 2009-2021)
+env = TradingSimulator(principal=principal, assets=assets, start_date="2022-01-01", end_date="2024-12-31", 
+                        rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 if (model == 1 or model == 2):
     n_actions = len(assets) + 1
@@ -155,19 +161,14 @@ if (is_training_mode == True):
                 utils.plot_mean_critic_loss_over_episodes(episode_axis, critic_loss_history, "ddpg")
             print(f"------Episode {i} Summary: Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
 
-            if (i == 100):
-                agent.save_models("trained_model_100") 
-            elif (i == 200):
-                agent.save_models("trained_model_200")    
-            elif (i == 300):
-                agent.save_models("trained_model_300")    
-            elif (i == 500):      
-                agent.save_models("trained_model_500") 
+            if (i % 100 == 0):
+                agent.save_models("trained_model_" + i) 
+                
         print("DDPG training done")
 # Testing algorithms:
 else:
     if (testing_mode["ddpg"] == 1):
-        agent.load_models("trained_model")
+        agent.load_models("trained_model", is_saved_models_zipped)
         np.random.seed(0)
         return_history["ddpg"] = []
 

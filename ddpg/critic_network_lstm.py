@@ -58,8 +58,11 @@ class CriticNetworkLSTM(nn.Module):
         checkpoint_file = os.path.join(saving_dir, self.name + "_ddpg")
         T.save(self.state_dict(), checkpoint_file)
 
-    def load_checkpoint(self, loading_dir):
-        checkpoint_file = os.path.join(loading_dir, self.name + "_ddpg")
+    def load_checkpoint(self, loading_dir, is_model_zipped):
+        if (is_model_zipped == True):
+            checkpoint_file = os.path.join(loading_dir, self.name + "_ddpg.zip")
+        else:
+            checkpoint_file = os.path.join(loading_dir, self.name + "_ddpg")
         if os.path.exists(checkpoint_file): 
             print("... loading checkpoint ...")
             self.load_state_dict(T.load(checkpoint_file)) 

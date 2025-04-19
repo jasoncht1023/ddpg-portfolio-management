@@ -57,7 +57,6 @@ def plot_testing_return(env, testing_modes, return_history, yearly_return_rate_h
     plt.ylabel('Return rate (in %)')
     _, year_axis = env.yearly_return_history()
     plt.xticks(rotation=45)
-    ax = plt.gca()
     for mode in testing_modes:
         if (testing_modes[mode] == 1):
             plt.plot(year_axis, yearly_return_rate_history[mode], label=mode)

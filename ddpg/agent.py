@@ -66,10 +66,10 @@ class Agent(object):
         # Epsilon-greedy exploration using noise
         if (is_training == True):
             epsilon = np.random.rand()
-            if (self.memory.mem_cntr < 5000):
+            if (self.memory.mem_cntr < 100000):
                 if (epsilon < 0.5):
                     mu += T.tensor(self.noise(), dtype=T.float).to(self.actor.device)
-            elif (self.memory.mem_cntr < 10000):
+            elif (self.memory.mem_cntr < 200000):
                 if (epsilon < 0.25):
                     mu += T.tensor(self.noise(), dtype=T.float).to(self.actor.device)
             else:
@@ -166,8 +166,8 @@ class Agent(object):
         self.critic.save_checkpoint(saving_dir)
         self.target_critic.save_checkpoint(saving_dir)
 
-    def load_models(self, loading_dir):
-        self.actor.load_checkpoint(loading_dir)
-        self.target_actor.load_checkpoint(loading_dir)
-        self.critic.load_checkpoint(loading_dir)
-        self.target_critic.load_checkpoint(loading_dir)
+    def load_models(self, loading_dir, is_model_zipped):
+        self.actor.load_checkpoint(loading_dir, is_model_zipped)
+        self.target_actor.load_checkpoint(loading_dir, is_model_zipped)
+        self.critic.load_checkpoint(loading_dir, is_model_zipped)
+        self.target_critic.load_checkpoint(loading_dir, is_model_zipped)
