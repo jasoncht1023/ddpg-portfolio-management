@@ -91,12 +91,10 @@ class TradingSimulator:
             return rolling_cov
         
         def read_treasury_rates(file_path):
-            # Read the CSV file
             df = pd.read_csv(file_path)
-            # Convert the 'date' column to datetime
             df['date'] = pd.to_datetime(df['date'])
-            # Extract the year from the 'date' column
             df['year'] = df['date'].dt.year
+
             # Create a dictionary of year and value pairs
             treasury_rate = dict(zip(df['year'], df[' value']))
             return treasury_rate
@@ -296,8 +294,8 @@ class TradingSimulator:
         curr_close_price = np.array([x for x in self.close_price.iloc[self.time]])                      # Close price of each asset at t
         prev_close_price = np.array([x for x in self.close_price.iloc[self.time-1]])                    # Close price of each asset at t-1
         log_return = np.log(np.divide(curr_close_price, prev_close_price))                              # Natural log of return
-        prev_rsi = np.array([x for x in self.rsi.iloc[self.time-1]]) / 100.0                              # RSI of each asset at time t-1
-        curr_rsi = np.array([x for x in self.rsi.iloc[self.time]]) / 100.0                                           # RSI of each asset at time t
+        prev_rsi = np.array([x for x in self.rsi.iloc[self.time-1]]) / 100.0                            # RSI of each asset at time t-1
+        curr_rsi = np.array([x for x in self.rsi.iloc[self.time]]) / 100.0                              # RSI of each asset at time t
         prev_obv = np.array([x for x in self.obv.iloc[self.time-1]])
         curr_obv = np.array([x for x in self.obv.iloc[self.time]])
         macd = np.array([x for x in self.macd.iloc[self.time]])
@@ -333,11 +331,14 @@ class TradingSimulator:
         # Adjust the weighting of each asset in the portfolio based on the new portfolio value
         # An empty action array means skipping the portfolio rebalance, not applicable in RL algorithms
         if (len(action) != 0):
+            
+            # Case for MPT amplifier: Multiply the MPT weightings with the input
             if (len(action) == len(self.portfolio)-1):
                 tangent_portfolio = self.tangent_portfolios[self.time]
                 amp = np.multiply(action, tangent_portfolio)
                 portfolio = amp / np.sum(amp)
                 action = list(portfolio) + [0]
+
             for i in range(len(self.portfolio)):
                 weight_adjusted_stock_value = new_value * action[i]
                 self.portfolio[i].set_weighting(action[i])
@@ -355,7 +356,6 @@ class TradingSimulator:
 
         self.portfolio_value = new_value
         self.value_history.append(new_value)
-        # reward = np.log(self.portfolio_value / old_portfolio_value)
         reward = self.portfolio_value - old_portfolio_value - total_tx_cost
 
         self.time += 1
@@ -364,7 +364,7 @@ class TradingSimulator:
         curr_close_price = np.array([x for x in self.close_price.iloc[self.time]])                    # Close price of each asset at t
         prev_close_price = np.array([x for x in self.close_price.iloc[self.time-1]])                  # Close price of each asset at t-1
         log_return = np.array(np.log(np.divide(curr_close_price, prev_close_price)))                  # Natural log of return
-        prev_rsi = np.array([x for x in self.rsi.iloc[self.time-1]]) / 100.0                              # RSI of each asset at time t-1
+        prev_rsi = np.array([x for x in self.rsi.iloc[self.time-1]]) / 100.0                          # RSI of each asset at time t-1
         curr_rsi = np.array([x for x in self.rsi.iloc[self.time]]) / 100.0
         prev_obv = np.array([x for x in self.obv.iloc[self.time-1]])
         curr_obv = np.array([x for x in self.obv.iloc[self.time]])
@@ -373,7 +373,7 @@ class TradingSimulator:
         diff = macd - signal
         diff = self.min_max_scaling(diff)
         holdings = np.array([asset.get_weighting() for asset in self.portfolio])                      # Share and cash holdings 
-        tangent_portfolio = self.tangent_portfolios[self.time]                                          # Tangent portfolio weights
+        tangent_portfolio = self.tangent_portfolios[self.time]                                        # Tangent portfolio weights
 
         new_state = np.concatenate((log_return, curr_obv, prev_obv, diff, curr_rsi, prev_rsi, tangent_portfolio, holdings))  # Concatenate the new state variables
 
