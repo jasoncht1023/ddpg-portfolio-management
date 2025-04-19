@@ -67,7 +67,7 @@ principal = 1000000
 num_episode = 500
 
 # Either Training mode or Evaluation mode should be run at a time
-is_training_mode = False
+is_training_mode = True
 
 # Choose which model to use {1: Fully Connected, 2: LSTM, 3: LSTM Amplifier}
 model = 2
@@ -114,7 +114,7 @@ agent = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.09, input_dims=[len(a
 # Training algorithms:
 if (is_training_mode == True):
     if (training_mode["ddpg"] == 1):
-        agent.load_models("trained_model")
+        agent.load_models("trained_model", is_saved_models_zipped)
         np.random.seed(0)
         return_history["ddpg"] = []
         sharpe_ratio_history["ddpg"] = []
@@ -162,7 +162,7 @@ if (is_training_mode == True):
             print(f"------Episode {i} Summary: Total Return {total_return:.2f}; Sharpe Ratio {sharpe_ratio:.5f};------\n")
 
             if (i % 100 == 0):
-                agent.save_models("trained_model_" + i) 
+                agent.save_models("trained_model_" + str(i)) 
                 
         print("DDPG training done")
 # Testing algorithms:
