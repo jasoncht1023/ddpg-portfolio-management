@@ -368,7 +368,7 @@ else:
                 exp_r = r.mean()
                 cov = r.cov()
                 d = pd.to_datetime(env.trading_dates[env.time])
-                risk_free_rate = (1+risk_free_rates[risk_free_rates["year"] == d.year]["risk_free_rate"].values[0]/100)**(1/252 * min(env.time, window)) - 1
+                risk_free_rate = (1+risk_free_rates[risk_free_rates["year"] == d.year]["risk_free_rate"].values[0]/100)**(1/252) - 1
                 
                 # Calculate tangent portfolio weights
                 weights = calculate_tangent_portfolio(exp_r, cov, risk_free_rate)

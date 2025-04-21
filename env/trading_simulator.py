@@ -113,7 +113,7 @@ class TradingSimulator:
             cov = rolling_cov[i]
             exp_r = rolling_exp_returns.iloc[i].values
             year = rolling_exp_returns.iloc[i].name.year
-            rate = (1 + treasury_rate[year]/100.0)**(1/252 * mpt_window) - 1
+            rate = (1 + treasury_rate[year]/100.0)**(1/252) - 1
             self.tangent_portfolios.append(self.calculate_tangent_portfolio(exp_r, cov, rate))
 
         # Collect all the Adjusted Close price data
