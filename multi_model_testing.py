@@ -67,14 +67,9 @@ principal = 1000000
 
 is_saved_models_zipped = True
 
-# Training settings, 1: mode will be trained; 0: mode will not be run
-training_mode = {
-    "ddpg": 1
-}
-
 # Testing settings, 1: mode will be evaluated; 0: mode will not be run
 # RL models must have a trained model to be evaluated
-testing_mode = {
+testing_modes = {
     "uniform_without_rebalance": 0,
     "uniform_with_rebalance": 0,
     "all_in_last_day_best_return": 0,
@@ -114,7 +109,7 @@ agent2 = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.09, input_dims=[len(
 agent3 = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.09, input_dims=[len(assets) * 8 + 1], 
               batch_size=128, n_actions=len(assets), model=3)
 
-if (testing_mode["ddpg_fc"] == 1):
+if (testing_modes["ddpg_fc"] == 1):
     agent1.load_models("test_48_500", is_saved_models_zipped)
     np.random.seed(0)
     return_history["ddpg_fc"] = []
@@ -135,7 +130,7 @@ if (testing_mode["ddpg_fc"] == 1):
     monthly_return_rate_history["ddpg_fc"], _ = env.monthly_return_history()
     utils.print_eval_results(env, total_return)
 
-if (testing_mode["ddpg_lstm"] == 1):
+if (testing_modes["ddpg_lstm"] == 1):
     agent2.load_models("test_420", is_saved_models_zipped)
     np.random.seed(0)
     return_history["ddpg_lstm"] = []
@@ -157,7 +152,7 @@ if (testing_mode["ddpg_lstm"] == 1):
     monthly_return_rate_history["ddpg_lstm"], _ = env.monthly_return_history()
     utils.print_eval_results(env, total_return)
 
-if (testing_mode["ddpg_lstm_longer"] == 1):
+if (testing_modes["ddpg_lstm_longer"] == 1):
     agent2.load_models("test_48_500", is_saved_models_zipped)
     np.random.seed(0)
     return_history["ddpg_lstm_longer"] = []
@@ -178,7 +173,7 @@ if (testing_mode["ddpg_lstm_longer"] == 1):
     monthly_return_rate_history["ddpg_lstm_longer"], _ = env.monthly_return_history()
     utils.print_eval_results(env, total_return)
 
-if (testing_mode["ddpg_lstm_shorter"] == 1):
+if (testing_modes["ddpg_lstm_shorter"] == 1):
     agent2.load_models("test_55_500", is_saved_models_zipped)
     np.random.seed(0)
     return_history["ddpg_lstm_shorter"] = []
@@ -199,7 +194,7 @@ if (testing_mode["ddpg_lstm_shorter"] == 1):
     monthly_return_rate_history["ddpg_lstm_shorter"], _ = env.monthly_return_history()
     utils.print_eval_results(env, total_return)
 
-if (testing_mode["ddpg_lstm_0"] == 1):
+if (testing_modes["ddpg_lstm_0"] == 1):
     agent2.load_models("test_48_0", is_saved_models_zipped)
     np.random.seed(0)
     return_history["ddpg_lstm_0"] = []
@@ -220,7 +215,7 @@ if (testing_mode["ddpg_lstm_0"] == 1):
     monthly_return_rate_history["ddpg_lstm_0"], _ = env.monthly_return_history()
     utils.print_eval_results(env, total_return)
 
-if (testing_mode["ddpg_lstm_100"] == 1):
+if (testing_modes["ddpg_lstm_100"] == 1):
     agent2.load_models("test_48_100", is_saved_models_zipped)
     np.random.seed(0)
     return_history["ddpg_lstm_100"] = []
@@ -241,7 +236,7 @@ if (testing_mode["ddpg_lstm_100"] == 1):
     monthly_return_rate_history["ddpg_lstm_100"], _ = env.monthly_return_history()
     utils.print_eval_results(env, total_return)
 
-if (testing_mode["ddpg_lstm_200"] == 1):
+if (testing_modes["ddpg_lstm_200"] == 1):
     agent2.load_models("test_48_200", is_saved_models_zipped)
     np.random.seed(0)
     return_history["ddpg_lstm_200"] = []
@@ -262,7 +257,7 @@ if (testing_mode["ddpg_lstm_200"] == 1):
     monthly_return_rate_history["ddpg_lstm_200"], _ = env.monthly_return_history()
     utils.print_eval_results(env, total_return)
 
-if (testing_mode["ddpg_lstm_300"] == 1):
+if (testing_modes["ddpg_lstm_300"] == 1):
     agent2.load_models("test_48_300", is_saved_models_zipped)
     np.random.seed(0)
     return_history["ddpg_lstm_300"] = []
@@ -283,7 +278,7 @@ if (testing_mode["ddpg_lstm_300"] == 1):
     monthly_return_rate_history["ddpg_lstm_300"], _ = env.monthly_return_history()
     utils.print_eval_results(env, total_return)
 
-if (testing_mode["ddpg_lstm_500"] == 1):
+if (testing_modes["ddpg_lstm_500"] == 1):
     agent2.load_models("test_48_500", is_saved_models_zipped)
     np.random.seed(0)
     return_history["ddpg_lstm_500"] = []
@@ -304,7 +299,7 @@ if (testing_mode["ddpg_lstm_500"] == 1):
     monthly_return_rate_history["ddpg_lstm_500"], _ = env.monthly_return_history()
     utils.print_eval_results(env, total_return)
 
-if (testing_mode["ddpg_amplifier"] == 1):
+if (testing_modes["ddpg_amplifier"] == 1):
     agent3.load_models("test_56", is_saved_models_zipped)
     np.random.seed(0)
     return_history["ddpg_amplifier"] = []
@@ -325,7 +320,7 @@ if (testing_mode["ddpg_amplifier"] == 1):
     monthly_return_rate_history["ddpg_amplifier"], _ = env.monthly_return_history()
     utils.print_eval_results(env, total_return)
 
-if (testing_mode["god"] == 1):
+if (testing_modes["god"] == 1):
     return_history["god"] = []
 
     print("--------------------God--------------------")
@@ -354,7 +349,7 @@ if (testing_mode["god"] == 1):
     monthly_return_rate_history["god"], _ = env.monthly_return_history()
     utils.print_eval_results(env, total_return)
 
-if (testing_mode["uniform_without_rebalance"] == 1):
+if (testing_modes["uniform_without_rebalance"] == 1):
     return_history["uniform_without_rebalance"] = []
 
     print("--------------------Uniform Weighting without Rebalancing--------------------")
@@ -376,7 +371,7 @@ if (testing_mode["uniform_without_rebalance"] == 1):
     monthly_return_rate_history["uniform_without_rebalance"], _ = env.monthly_return_history()
     utils.print_eval_results(env, total_return)
 
-if (testing_mode["uniform_with_rebalance"] == 1):
+if (testing_modes["uniform_with_rebalance"] == 1):
     return_history["uniform_with_rebalance"] = []
 
     print("--------------------Uniform Weighting with Rebalancing--------------------")
@@ -394,7 +389,7 @@ if (testing_mode["uniform_with_rebalance"] == 1):
     monthly_return_rate_history["uniform_with_rebalance"], _ = env.monthly_return_history()
     utils.print_eval_results(env, total_return)
 
-if (testing_mode["follow_last_day_best_return"] == 1):
+if (testing_modes["follow_last_day_best_return"] == 1):
     return_history["follow_last_day_best_return"] = []
 
     print("--------------------follow last day best return--------------------")
@@ -439,7 +434,7 @@ if (testing_mode["follow_last_day_best_return"] == 1):
     monthly_return_rate_history["follow_last_day_best_return"], _ = env.monthly_return_history()
     utils.print_eval_results(env, total_return)
 
-if (testing_mode["all_in_last_day_best_return"] == 1):
+if (testing_modes["all_in_last_day_best_return"] == 1):
     return_history["all_in_last_day_best_return"] = []
 
     print("--------------------All-in last day best return--------------------")
@@ -465,7 +460,7 @@ if (testing_mode["all_in_last_day_best_return"] == 1):
     monthly_return_rate_history["all_in_last_day_best_return"], _ = env.monthly_return_history()
     utils.print_eval_results(env, total_return)
 
-if (testing_mode["mpt"] == 1):
+if (testing_modes["mpt"] == 1):
     return_history["mpt"] = []
     print("--------------------Efficient Frontier Tangent Portfolio--------------------")
     observation = env.restart()
@@ -520,4 +515,4 @@ if (testing_mode["mpt"] == 1):
 if not os.path.isdir("evaluation"): 
     os.makedirs("evaluation")
 
-utils.plot_testing_return(env, testing_mode, return_history, yearly_return_rate_history, monthly_return_rate_history)
+utils.plot_testing_return(env, testing_modes, return_history, yearly_return_rate_history, monthly_return_rate_history)
