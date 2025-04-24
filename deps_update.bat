@@ -5,7 +5,7 @@ chcp 65001
 powershell -Command "Remove-Item -Force requirements.txt"
 
 :: Generate a new requirements.txt file
-pip list --format=freeze > requirements.txt
+pip freeze > requirements.txt
 
 :: Remove specific packages from requirements.txt
 powershell -Command "(Get-Content requirements.txt) -notmatch 'torch==|torchaudio==|torchvision==' | Set-Content requirements.txt"

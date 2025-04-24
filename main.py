@@ -44,7 +44,7 @@ principal = 1000000
 num_episode = 500
 
 # Either Training mode or Evaluation mode should be run at a time
-is_training_mode = False
+is_training_modes = False
 
 # Choose which model to use {1: Fully Connected, 2: LSTM, 3: LSTM Amplifier}
 model = 2
@@ -52,13 +52,13 @@ model = 2
 is_saved_models_zipped = False
 
 # Training settings, 1: mode will be trained; 0: mode will not be run
-training_mode = {
+training_modes = {
     "ddpg": 1
 }
 
 # Testing settings, 1: mode will be evaluated; 0: mode will not be run
 # RL models must have a trained model to be evaluated
-testing_mode = {
+testing_modes = {
     "ddpg": 1,
     "god": 0,
     "all_in_last_day_best_return": 1,
@@ -76,7 +76,7 @@ sharpe_ratio_history = {}
 actor_loss_history = []
 critic_loss_history = []
 
-# Trading environment initialization (Trained: 2009-2021)
+# Trading environment initialization
 env = TradingSimulator(principal=principal, assets=assets, start_date="2022-01-01", end_date="2024-12-31", 
                         rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
@@ -89,8 +89,8 @@ agent = Agent(alpha=0.0001, beta=0.0005, gamma=0.99, tau=0.03, input_dims=[len(a
               batch_size=128, n_actions=n_actions, model=model)
 
 # Training algorithms:
-if (is_training_mode == True):
-    if (training_mode["ddpg"] == 1):
+if (is_training_modes == True):
+    if (training_modes["ddpg"] == 1):
         agent.load_models("trained_model", is_saved_models_zipped)
         np.random.seed(0)
         return_history["ddpg"] = []
@@ -107,7 +107,7 @@ if (is_training_mode == True):
             learning_count = 0
 
             while not done:
-                action = agent.choose_action(observation, is_training_mode, (num_episode-i)/num_episode)
+                action = agent.choose_action(observation, is_training_modes, (num_episode-i)/num_episode)
                 new_state, reward, done = env.step(action)
                 agent.remember(observation, action, reward, new_state, done)
                 actor_loss, critic_loss = agent.learn() 
@@ -141,7 +141,7 @@ if (is_training_mode == True):
         print("DDPG training done")
 # Testing algorithms:
 else:
-    if (testing_mode["ddpg"] == 1):
+    if (testing_modes["ddpg"] == 1):
         agent.load_models("trained_model", is_saved_models_zipped)
         np.random.seed(0)
         return_history["ddpg"] = []
@@ -152,7 +152,7 @@ else:
         total_return = 0
 
         while not done:
-            action = agent.choose_action(observation, is_training_mode)
+            action = agent.choose_action(observation, is_training_modes)
             new_state, reward, done = env.step(action)
             total_return += reward
             observation = new_state
@@ -163,7 +163,7 @@ else:
         utils.print_eval_results(env, total_return)
 
     # For debug only, show the highest possible return
-    if (testing_mode["god"] == 1):
+    if (testing_modes["god"] == 1):
         return_history["god"] = []
 
         print("--------------------God--------------------")
@@ -192,7 +192,7 @@ else:
         monthly_return_rate_history["god"], _ = env.monthly_return_history()
         utils.print_eval_results(env, total_return)
 
-    if (testing_mode["follow_last_day_best_return"] == 1):
+    if (testing_modes["follow_last_day_best_return"] == 1):
         return_history["follow_last_day_best_return"] = []
 
         print("--------------------follow last day best return--------------------")
@@ -237,7 +237,7 @@ else:
         monthly_return_rate_history["follow_last_day_best_return"], _ = env.monthly_return_history()
         utils.print_eval_results(env, total_return)
 
-    if (testing_mode["all_in_last_day_best_return"] == 1):
+    if (testing_modes["all_in_last_day_best_return"] == 1):
         return_history["all_in_last_day_best_return"] = []
 
         print("--------------------All-in last day best return--------------------")
@@ -263,7 +263,7 @@ else:
         monthly_return_rate_history["all_in_last_day_best_return"], _ = env.monthly_return_history()
         utils.print_eval_results(env, total_return)
 
-    if (testing_mode["uniform_with_rebalance"] == 1):
+    if (testing_modes["uniform_with_rebalance"] == 1):
         return_history["uniform_with_rebalance"] = []
 
         print("--------------------Uniform Weighting with Rebalancing--------------------")
@@ -281,7 +281,7 @@ else:
         monthly_return_rate_history["uniform_with_rebalance"], _ = env.monthly_return_history()
         utils.print_eval_results(env, total_return)
 
-    if (testing_mode["uniform_without_rebalance"] == 1):
+    if (testing_modes["uniform_without_rebalance"] == 1):
         return_history["uniform_without_rebalance"] = []
 
         print("--------------------Uniform Weighting without Rebalancing--------------------")
@@ -303,7 +303,7 @@ else:
         monthly_return_rate_history["uniform_without_rebalance"], _ = env.monthly_return_history()
         utils.print_eval_results(env, total_return)
 
-    if (testing_mode["mpt"] == 1):
+    if (testing_modes["mpt"] == 1):
         return_history["mpt"] = []
         print("--------------------Efficient Frontier Tangent Portfolio--------------------")
         observation = env.restart()
@@ -359,11 +359,11 @@ if not os.path.isdir("evaluation"):
     os.makedirs("evaluation")
 
 # Plotting training / testing evaluation graphs depending on the mode
-if (is_training_mode == True):
+if (is_training_modes == True):
     episode_axis = range(1, num_episode+1) 
     utils.plot_return_over_episodes(episode_axis, return_history["ddpg"], "ddpg")
     utils.plot_sharpe_ratio_over_episodes(episode_axis, sharpe_ratio_history["ddpg"], "ddpg")
     utils.plot_mean_actor_loss_over_episodes(episode_axis, actor_loss_history, "ddpg")
     utils.plot_mean_critic_loss_over_episodes(episode_axis, critic_loss_history, "ddpg")
 else:
-    utils.plot_testing_return(env, testing_mode, return_history, yearly_return_rate_history, monthly_return_rate_history)
+    utils.plot_testing_return(env, testing_modes, return_history, yearly_return_rate_history, monthly_return_rate_history)

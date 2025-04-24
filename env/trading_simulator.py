@@ -76,6 +76,7 @@ class TradingSimulator:
         close_data = close_data.drop(columns=[(stock, label) for stock in assets for label in to_drop])     # Drop unused columns
         start_index = close_data[close_data['Date'] >= start_date].index[0]                                 # Index of the first trading date in range
         close_data = close_data[start_index-1:].reset_index(drop=True)                                      # Take an extra day before the first in-range trading date
+
         def numpy_rolling_cov(returns, window_size):
             n_stocks = returns.shape[1]
             n_days = returns.shape[0]
@@ -83,7 +84,7 @@ class TradingSimulator:
             
             for t in range(n_days - window_size + 1):
                 window = returns[t:t + window_size]
-                cov = np.cov(window.T, ddof=0)  # Covariance
+                cov = np.cov(window.T, ddof=0)          # Covariance
                 rolling_cov[t] = cov
             
             return rolling_cov
