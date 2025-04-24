@@ -7,8 +7,6 @@ from datetime import datetime, timedelta
 from env.asset import Asset
 from scipy.optimize import minimize
 
-# actor input_size: (n_actions - 1) * 10 + n_actions
-# critic input_size: (n_actions - 1) * 10 + n_actions * 2
 class TradingSimulator:
     def __init__(self, principal, assets, start_date, end_date, rebalance_window, tx_fee_per_share):
         compute_date = datetime.strptime(start_date, '%Y-%m-%d') - timedelta(days=60)
@@ -96,17 +94,16 @@ class TradingSimulator:
             df['year'] = df['date'].dt.year
 
             # Create a dictionary of year and value pairs
-            treasury_rate = dict(zip(df['year'], df[' value']))
+            treasury_rate = dict(zip(df['year'], df['value']))
             return treasury_rate
         
         self.trading_dates = close_data["Date"].dt.date.astype(str).tolist()[1:]
-        # self.rebalance_dates = [self.trading_dates[i] for i in range(len(self.trading_dates)) if (i+1) % rebalance_window == 0]
         mpt_window = 30
 
         rolling_cov = numpy_rolling_cov(returns.to_numpy(), mpt_window)[-len(self.trading_dates)-1:]
         rolling_exp_returns = returns.rolling(mpt_window).mean()[-len(self.trading_dates)-1:]
 
-        file_path = './env/30y-treasury-rate.csv'
+        file_path = './env/10y-treasury-rate.csv'
         treasury_rate = read_treasury_rates(file_path)
         self.tangent_portfolios = []
         for i in range(len(rolling_cov)):
@@ -146,7 +143,7 @@ class TradingSimulator:
         self.assets = assets
         self.rebalance_window = rebalance_window
         self.tx_fee = tx_fee_per_share
-        self.risk_free_rates = pd.read_csv('env/30y-treasury-rate.csv')
+        self.risk_free_rates = pd.read_csv('env/10y-treasury-rate.csv')
         self.risk_free_rates['date'] = pd.to_datetime(self.risk_free_rates['date']).dt.year
         self.risk_free_rates.columns = ["year", "risk_free_rate"]
 
@@ -201,7 +198,7 @@ class TradingSimulator:
     
     def sharpe_ratio(self):            
         # Load the annual risk free rates
-        risk_free_rates = pd.read_csv('env/30y-treasury-rate.csv')
+        risk_free_rates = pd.read_csv('env/10y-treasury-rate.csv')
         risk_free_rates['date'] = pd.to_datetime(risk_free_rates['date']).dt.year
         risk_free_rates.columns = ["year", "risk_free_rate"]
 
@@ -215,19 +212,7 @@ class TradingSimulator:
 
         df["excess_return_rate"] = df["return_rate"] - df["risk_free_rate"]/100
 
-        # print(df)
         return df["excess_return_rate"].mean() / df["excess_return_rate"].std()
-    
-    def omega_ratio(self, target_rate):
-        window_target_rate = (1+target_rate/100)**(1/(252/self.rebalance_window))-1
-        sorted_portfolio_returns = np.sort(pd.Series(self.value_history).pct_change().dropna())
-        cdf = np.arange(1, len(sorted_portfolio_returns) + 1) / len(sorted_portfolio_returns)
-        cdf_value_at_k = np.interp(window_target_rate, sorted_portfolio_returns, cdf)           # Interpolate to find CDF value at k
-
-        area_below_k = cdf_value_at_k                                                           # Area under the CDF for x < k
-        area_above_k = 1 - cdf_value_at_k                                                       # Area above the CDF for x > k
-        omega = area_above_k/area_below_k
-        return omega
     
     def maximum_drawdown(self):
         values = self.value_history
@@ -314,8 +299,6 @@ class TradingSimulator:
         old_portfolio_value = self.portfolio_value
         old_portfolio = copy.deepcopy(self.portfolio)
 
-        # print("Time step:", self.time)
-
         # Compute the new portfolio value after 1 rebalance window
         # Price and value of a particular stock change in time = t+1, price of cash is unchanged
         new_value = 0
@@ -325,7 +308,7 @@ class TradingSimulator:
             self.portfolio[i].set_value(self.portfolio[i].get_price() * self.portfolio[i].get_num_shares())
             new_value += self.portfolio[i].get_value()
 
-        # Decucting ;ast day transaction fee from the portfolio value
+        # Decucting last day transaction fee from the portfolio value
         new_value -= self.tx_cost_history[-1]
         
         # Adjust the weighting of each asset in the portfolio based on the new portfolio value
@@ -372,12 +355,12 @@ class TradingSimulator:
         signal = np.array([x for x in self.signal.iloc[self.time]])
         diff = macd - signal
         diff = self.min_max_scaling(diff)
-        holdings = np.array([asset.get_weighting() for asset in self.portfolio])                      # Share and cash holdings 
-        tangent_portfolio = self.tangent_portfolios[self.time]                                        # Tangent portfolio weights
+        holdings = np.array([asset.get_weighting() for asset in self.portfolio])                                                # Share and cash holdings 
+        tangent_portfolio = self.tangent_portfolios[self.time]                                                                  # Tangent portfolio weights
 
-        new_state = np.concatenate((log_return, curr_obv, prev_obv, diff, curr_rsi, prev_rsi, tangent_portfolio, holdings))  # Concatenate the new state variables
+        new_state = np.concatenate((log_return, curr_obv, prev_obv, diff, curr_rsi, prev_rsi, tangent_portfolio, holdings))     # Concatenate the new state variables
 
-        if (self.time == len(self.close_price)-1):                                                    # Indicate the end of the episode 
+        if (self.time == len(self.close_price)-1):                                                                              # Indicate the end of the episode 
             done = 1
 
         return new_state, reward, done

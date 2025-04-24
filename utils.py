@@ -38,13 +38,14 @@ def plot_mean_critic_loss_over_episodes(episode_axis, critic_loss_axis, label):
     plt.clf()
 
 def plot_testing_return(env, testing_modes, return_history, yearly_return_rate_history, monthly_return_rate_history):
+    plt.figure(figsize=(10,6))
     plt.title("Cumulative return over time")
     plt.xlabel('Date') 
     plt.ylabel('Cumulative return')
     date_axis = env.trading_date_range()
     plt.xticks(rotation=45)
     ax = plt.gca()
-    ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=15))
+    ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=20))
     for mode in testing_modes:
         if (testing_modes[mode] == 1):
             plt.plot(date_axis, return_history[mode], label=mode)
@@ -70,7 +71,7 @@ def plot_testing_return(env, testing_modes, return_history, yearly_return_rate_h
     _, month_axis = env.monthly_return_history()
     plt.xticks(rotation=45)
     ax = plt.gca()
-    ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=15))
+    ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=20))
     for mode in testing_modes:
         if (testing_modes[mode] == 1):
             plt.plot(month_axis, monthly_return_rate_history[mode], label=mode)
