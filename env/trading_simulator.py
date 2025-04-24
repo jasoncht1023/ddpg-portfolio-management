@@ -96,7 +96,7 @@ class TradingSimulator:
             df['year'] = df['date'].dt.year
 
             # Create a dictionary of year and value pairs
-            treasury_rate = dict(zip(df['year'], df[' value']))
+            treasury_rate = dict(zip(df['year'], df['value']))
             return treasury_rate
         
         self.trading_dates = close_data["Date"].dt.date.astype(str).tolist()[1:]
@@ -106,7 +106,7 @@ class TradingSimulator:
         rolling_cov = numpy_rolling_cov(returns.to_numpy(), mpt_window)[-len(self.trading_dates)-1:]
         rolling_exp_returns = returns.rolling(mpt_window).mean()[-len(self.trading_dates)-1:]
 
-        file_path = './env/30y-treasury-rate.csv'
+        file_path = './env/10y-treasury-rate.csv'
         treasury_rate = read_treasury_rates(file_path)
         self.tangent_portfolios = []
         for i in range(len(rolling_cov)):
@@ -146,7 +146,7 @@ class TradingSimulator:
         self.assets = assets
         self.rebalance_window = rebalance_window
         self.tx_fee = tx_fee_per_share
-        self.risk_free_rates = pd.read_csv('env/30y-treasury-rate.csv')
+        self.risk_free_rates = pd.read_csv('env/10y-treasury-rate.csv')
         self.risk_free_rates['date'] = pd.to_datetime(self.risk_free_rates['date']).dt.year
         self.risk_free_rates.columns = ["year", "risk_free_rate"]
 
@@ -201,7 +201,7 @@ class TradingSimulator:
     
     def sharpe_ratio(self):            
         # Load the annual risk free rates
-        risk_free_rates = pd.read_csv('env/30y-treasury-rate.csv')
+        risk_free_rates = pd.read_csv('env/10y-treasury-rate.csv')
         risk_free_rates['date'] = pd.to_datetime(risk_free_rates['date']).dt.year
         risk_free_rates.columns = ["year", "risk_free_rate"]
 

@@ -5,76 +5,42 @@ import os
 
 # Actor / Policy Network / mu
 # decide what to do based on the current state, outputs action values
-class ActorNetworkAmplifier(nn.Module):
-    def __init__(self, learning_rate, n_actions, name):
+class ActorNetworkAmplifier(nn.Module):   
+    def __init__(self, learning_rate, n_actions, lstm_size, fc_size, name):
         super(ActorNetworkAmplifier, self).__init__()
         self.name = name
-        self.n_actions = n_actions
-        self.input_size = n_actions * 8 + 1
+        input_size = n_actions * 8 + 1
         self.relu = nn.ReLU()
 
-        self.fc1 = nn.Linear(self.input_size, 64)
-        self.lstm = nn.LSTM(64, 64)
+        self.lstm = nn.LSTM(input_size=input_size, hidden_size=lstm_size, num_layers=2, dropout=0.2)
         self.__init_lstm(self.lstm)
-        self.fc2 = nn.Linear(64, 128)
-        self.fc3 = nn.Linear(128, 64)
-        self.bn = nn.LayerNorm(64)
-        self.dropout = nn.Dropout(0.4)
-        self.fc4 = nn.Linear(64, n_actions)
-        self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
+
+        self.fc = nn.Linear(lstm_size, fc_size)
+        self.bn = nn.LayerNorm(fc_size)
+        f1 = 0.003          
+        nn.init.uniform_(self.fc.weight.data, -f1, f1)
+        nn.init.uniform_(self.fc.bias.data, -f1, f1)
+
+        self.mu = nn.Linear(fc_size, n_actions)
 
         self.softmax = nn.Softmax(dim=-1)
-        # self.device = T.device("cuda:0" if T.cuda.is_available() else "cpu")
+        self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
+
         self.device = T.device("cpu")
         self.to(self.device)
 
     def forward(self, x):
-        x = self.relu(self.fc1(x))
-        x, _ = self.lstm(x.unsqueeze(0))
-        x = self.relu(self.fc2(x.squeeze(0)))
-        x = self.relu(self.fc3(x))
+        x = x.unsqueeze(0)
+        output, (final_hidden_state, final_cell_state) = self.lstm(x)
+        x = final_hidden_state[-1]
+        x = self.fc(x)
         x = self.bn(x)
-        x = self.dropout(x)
-        x = T.tanh(self.fc4(x))
+        x = self.relu(x)
+        x = self.mu(x)
+        x = T.tanh(x)
         x = x + 1
+
         return x
-    
-    # def __init__(self, learning_rate, n_actions, lstm_size, fc_size, name):
-    #     super(ActorNetworkAmplifier, self).__init__()
-    #     self.name = name
-    #     input_size = n_actions * 8 + 1
-    #     self.relu = nn.ReLU()
-
-    #     self.lstm = nn.LSTM(input_size=input_size, hidden_size=lstm_size, num_layers=2, dropout=0.2)
-    #     self.__init_lstm(self.lstm)
-
-    #     self.fc = nn.Linear(lstm_size, fc_size)
-    #     self.bn = nn.LayerNorm(fc_size)
-    #     f1 = 0.003          
-    #     nn.init.uniform_(self.fc.weight.data, -f1, f1)
-    #     nn.init.uniform_(self.fc.bias.data, -f1, f1)
-
-    #     self.mu = nn.Linear(fc_size, n_actions)
-
-    #     self.softmax = nn.Softmax(dim=-1)
-    #     self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
-
-    #     # self.device = T.device("cuda:0" if T.cuda.is_available() else "cpu")
-    #     self.device = T.device("cpu")
-    #     self.to(self.device)
-
-    # def forward(self, x):
-    #     x = x.unsqueeze(0)
-    #     output, (final_hidden_state, final_cell_state) = self.lstm(x)
-    #     x = final_hidden_state[-1]
-    #     x = self.fc(x)
-    #     x = self.bn(x)
-    #     x = self.relu(x)
-    #     x = self.mu(x)
-    #     x = T.tanh(x)
-    #     x = x + 1
-
-    #     return x
 
     def __init_lstm(self, lstm_layer):
         for name, param in lstm_layer.named_parameters():

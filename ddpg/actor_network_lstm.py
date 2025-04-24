@@ -26,7 +26,6 @@ class ActorNetworkLSTM(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
 
-        # self.device = T.device("cuda:0" if T.cuda.is_available() else "cpu")
         self.device = T.device("cpu")
         self.to(self.device)
 

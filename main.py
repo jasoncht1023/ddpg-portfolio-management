@@ -16,29 +16,6 @@ assets = [
     # "GOLD",
     # "FDP",
     # "NEM",
-    # "MMM",
-    # "GS",
-    # "AXP",
-    # "HD",
-    # "PG",
-    # "AMGN",
-    # "HON",
-    # "CRM",
-    # "AAPL",
-    # "TRV",
-    # "IBM",
-    # "UNH",
-    # "CAT",
-    # "JNJ",
-    # "JPM",
-    # "V",
-    # "MCD",
-    # "WBA",
-    # "KO",
-    # "WMT",
-    # "MSFT",
-    # "DIS",
-    # "ADDYY",
     # "AMD",
     # "BA",
     # "SBUX",
@@ -67,7 +44,7 @@ principal = 1000000
 num_episode = 500
 
 # Either Training mode or Evaluation mode should be run at a time
-is_training_mode = True
+is_training_mode = False
 
 # Choose which model to use {1: Fully Connected, 2: LSTM, 3: LSTM Amplifier}
 model = 2
@@ -100,7 +77,7 @@ actor_loss_history = []
 critic_loss_history = []
 
 # Trading environment initialization (Trained: 2009-2021)
-env = TradingSimulator(principal=principal, assets=assets, start_date="2009-01-01", end_date="2021-12-31", 
+env = TradingSimulator(principal=principal, assets=assets, start_date="2022-01-01", end_date="2024-12-31", 
                         rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 if (model == 1 or model == 2):
@@ -132,9 +109,6 @@ if (is_training_mode == True):
             while not done:
                 action = agent.choose_action(observation, is_training_mode, (num_episode-i)/num_episode)
                 new_state, reward, done = env.step(action)
-                # if (i % 10 == 0 or i == 1):
-                #     print("observation:", observation)
-                #     print("action:", action, "\n")
                 agent.remember(observation, action, reward, new_state, done)
                 actor_loss, critic_loss = agent.learn() 
                 if (actor_loss != None):
@@ -179,9 +153,7 @@ else:
 
         while not done:
             action = agent.choose_action(observation, is_training_mode)
-            # print(action, "\n")
             new_state, reward, done = env.step(action)
-            # print(new_state, "\n")
             total_return += reward
             observation = new_state
             return_history["ddpg"].append(total_return)
@@ -190,6 +162,7 @@ else:
         monthly_return_rate_history["ddpg"], _ = env.monthly_return_history()
         utils.print_eval_results(env, total_return)
 
+    # For debug only, show the highest possible return
     if (testing_mode["god"] == 1):
         return_history["god"] = []
 
@@ -337,7 +310,7 @@ else:
         done = 0
         total_return = 0
 
-        risk_free_rates = pd.read_csv('env/30y-treasury-rate.csv')
+        risk_free_rates = pd.read_csv('env/10y-treasury-rate.csv')
         risk_free_rates['date'] = pd.to_datetime(risk_free_rates['date']).dt.year
         risk_free_rates.columns = ["year", "risk_free_rate"]
 
