@@ -40,6 +40,41 @@ class CriticNetworkAmplifier(nn.Module):
         state_action_value = self.q(x)
 
         return state_action_value
+
+    # def __init__(self, learning_rate, n_actions, lstm_size, fc_size, name):
+    #     super(CriticNetworkAmplifier, self).__init__()
+    #     self.name = name
+    #     input_size = n_actions * 9 + 1
+    #     self.relu = nn.ReLU()       
+
+    #     self.lstm = nn.LSTM(input_size=input_size, hidden_size=lstm_size, num_layers=2, dropout=0.2)
+    #     self.__init_lstm(self.lstm)
+
+    #     self.fc = nn.Linear(lstm_size, fc_size)
+    #     self.bn = nn.LayerNorm(fc_size)
+    #     f1 = 0.004           
+    #     nn.init.uniform_(self.fc.weight.data, -f1, f1)
+    #     nn.init.uniform_(self.fc.bias.data, -f1, f1)
+
+    #     self.q = nn.Linear(fc_size, 1)
+
+    #     self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
+
+    #     # self.device = T.device("cuda:0" if T.cuda.is_available() else "cpu")
+    #     self.device = T.device("cpu")
+    #     self.to(self.device)
+
+    # def forward(self, state, action):
+    #     x = T.cat((state, action), dim=-1)
+    #     x = x.unsqueeze(0)
+    #     output, (final_hidden_state, final_cell_state) = self.lstm(x)
+    #     x = final_hidden_state[-1]
+    #     x = self.fc(x)
+    #     x = self.bn(x)
+    #     x = self.relu(x)        
+    #     state_action_value = self.q(x)
+
+    #     return state_action_value
     
     def __init_lstm(self, lstm_layer):
         for name, param in lstm_layer.named_parameters():

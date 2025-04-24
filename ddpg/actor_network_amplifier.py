@@ -39,6 +39,43 @@ class ActorNetworkAmplifier(nn.Module):
         x = x + 1
         return x
     
+    # def __init__(self, learning_rate, n_actions, lstm_size, fc_size, name):
+    #     super(ActorNetworkAmplifier, self).__init__()
+    #     self.name = name
+    #     input_size = n_actions * 8 + 1
+    #     self.relu = nn.ReLU()
+
+    #     self.lstm = nn.LSTM(input_size=input_size, hidden_size=lstm_size, num_layers=2, dropout=0.2)
+    #     self.__init_lstm(self.lstm)
+
+    #     self.fc = nn.Linear(lstm_size, fc_size)
+    #     self.bn = nn.LayerNorm(fc_size)
+    #     f1 = 0.003          
+    #     nn.init.uniform_(self.fc.weight.data, -f1, f1)
+    #     nn.init.uniform_(self.fc.bias.data, -f1, f1)
+
+    #     self.mu = nn.Linear(fc_size, n_actions)
+
+    #     self.softmax = nn.Softmax(dim=-1)
+    #     self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
+
+    #     # self.device = T.device("cuda:0" if T.cuda.is_available() else "cpu")
+    #     self.device = T.device("cpu")
+    #     self.to(self.device)
+
+    # def forward(self, x):
+    #     x = x.unsqueeze(0)
+    #     output, (final_hidden_state, final_cell_state) = self.lstm(x)
+    #     x = final_hidden_state[-1]
+    #     x = self.fc(x)
+    #     x = self.bn(x)
+    #     x = self.relu(x)
+    #     x = self.mu(x)
+    #     x = T.tanh(x)
+    #     x = x + 1
+
+    #     return x
+
     def __init_lstm(self, lstm_layer):
         for name, param in lstm_layer.named_parameters():
             if ("weight_ih" in name):                                     # Input-to-hidden weights

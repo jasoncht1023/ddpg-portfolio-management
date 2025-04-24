@@ -100,7 +100,7 @@ actor_loss_history = []
 critic_loss_history = []
 
 # Trading environment initialization (Trained: 2009-2021)
-env = TradingSimulator(principal=principal, assets=assets, start_date="2022-01-01", end_date="2024-12-31", 
+env = TradingSimulator(principal=principal, assets=assets, start_date="2009-01-01", end_date="2021-12-31", 
                         rebalance_window=rebalance_window, tx_fee_per_share=tx_fee_per_share)
 
 if (model == 1 or model == 2):
@@ -108,7 +108,7 @@ if (model == 1 or model == 2):
 elif (model == 3):
     n_actions = len(assets)
 
-agent = Agent(alpha=0.0005, beta=0.0025, gamma=0.99, tau=0.09, input_dims=[len(assets) * 8 + 1], 
+agent = Agent(alpha=0.0001, beta=0.0005, gamma=0.99, tau=0.03, input_dims=[len(assets) * 8 + 1], 
               batch_size=128, n_actions=n_actions, model=model)
 
 # Training algorithms:
@@ -130,7 +130,7 @@ if (is_training_mode == True):
             learning_count = 0
 
             while not done:
-                action = agent.choose_action(observation, is_training_mode)
+                action = agent.choose_action(observation, is_training_mode, (num_episode-i)/num_episode)
                 new_state, reward, done = env.step(action)
                 # if (i % 10 == 0 or i == 1):
                 #     print("observation:", observation)

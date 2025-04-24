@@ -10,7 +10,6 @@ class ActorNetworkLSTM(nn.Module):
         super(ActorNetworkLSTM, self).__init__()
         self.name = name
         input_size = (n_actions - 1) * 7 + n_actions
-        # input_size = (n_actions-1) * 4 + n_actions + 1
         self.relu = nn.ReLU()
 
         self.lstm = nn.LSTM(input_size=input_size, hidden_size=lstm_size, num_layers=2, dropout=0.2)
